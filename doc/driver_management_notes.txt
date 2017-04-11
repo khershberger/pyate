@@ -1,0 +1,39 @@
+*** instrumentcontrol ***
+getInstrumentDriver(Resource string):
+	Create instrument resource
+	    Determine resource interface type
+	        NI-VISA
+	            Get resource manager
+	            Get resource
+	            Overload resource w/ wrapper
+	            Determine instrument type
+	            Return instrument driver w/ Resource
+	        PROLOGIX
+	            Create resource
+	            Overload resource w/ wrapper
+	            Determine instrument type
+	            Return instrument driver w/ Resource
+
+	Query Instrument
+	Instantiate & Return Driver
+	
+Driver
+  Inherits Model
+    Inherits Instrument
+
+*** visawrapper ***
+ResourcePyvisa
+  Inherits pyvisa.resource 
+ResourceWanglib
+  Inherits wanglib.??
+  
+ResourceManager (static)
+    open_resource
+        Determine resource type
+            pyvisa
+                gets Resource Manager
+                gets Resource
+            prologix
+                gets Resource
+        Overloads resource with visawrapper.Resource
+        return Resource
