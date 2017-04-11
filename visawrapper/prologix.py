@@ -31,16 +31,19 @@ for our ``plx`` controller object (replace the ``xxx``es
 with the controller's actual ip address, found using the
 Prologix Netfinder tool).
 
+Original code from https://github.com/baldwint/wanglib
+
 """
 
-from wanglib.util import Serial
+#from wanglib.util import Serial
+from serial import Serial
 from socket import socket, AF_INET, SOCK_STREAM, IPPROTO_TCP
 from time import sleep
+import logging
 
 class _prologix_base(object):
     """
     Base class for Prologix controllers (ethernet/usb)
-
     """
 
     def __init__(self):
@@ -48,14 +51,8 @@ class _prologix_base(object):
         initialization routines common to USB and ethernet
 
         """
-        # keep a local copy of the current address
-        # and read-after write setting
-        # so we're not always asking for it
-        self._addr = self.addr
-        self._auto = self.auto
-
-
-    # use addr to select an instrument by its GPIB address
+        self.logger = logging.getLogger(__name__)
+        self.iolog  = logging.getLogger(__name__ + '.io')
 
     @property
     def addr(self):
@@ -83,7 +80,7 @@ class _prologix_base(object):
         # update local record
         self._addr = new_addr
         # change to the new address
-        self.write("++addr %d" % new_addr)
+        self.write('++addr {:d}'.format(new_addr))
         # we update the local variable first because the 'write'
         # command may have a built-in lag. if we intterupt a program
         # during this period, the local attribute will be wrong
@@ -104,7 +101,7 @@ class _prologix_base(object):
     @auto.setter
     def auto(self, val):
         self._auto = bool(val)
-        self.write("++auto %d" % self._auto)
+        self.write('++auto {:d}'.format(self._auto))
 
     def version(self):
         """ Check the Prologix firmware version. """
@@ -133,7 +130,7 @@ class _prologix_base(object):
     @savecfg.setter
     def savecfg(self, val):
         d = bool(val)
-        self.write("++savecfg %d" % d)
+        self.write('++savecfg {:d}'.format(d))
 
     def instrument(self, addr, **kwargs):
         """
@@ -149,6 +146,19 @@ class _prologix_base(object):
                   attached to this controller.
         """
         return instrument(self, addr, **kwargs)
+    
+    def assertDefaultConfiguration(self):
+        # Disable configuration saving by default
+        self.savecfg = False
+
+        # Configure as controller
+        self.write('++mode 1')
+
+        # Disable 'Read-after-Write'
+        self.auto = False
+        
+    def ping(self):
+        return self.ask('++ver') 
 
 class PrologixEthernet(_prologix_base):
     """
@@ -165,23 +175,61 @@ class PrologixEthernet(_prologix_base):
     """
 
     def __init__(self, ip):
-        # open a socket to the controller
-        self.bus = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)
-        self.bus.settimeout(5)
-        self.bus.connect((ip, 1234))
-
-        # change to controller mode
-        self.bus.send('++mode 1\n')
-
         # do common startup routines
         super(PrologixEthernet, self).__init__()
 
-    def write(self, command, lag=0.1):
-        self.bus.send("%s\n" % command)
-        sleep(lag)
+        self.ip = ip
+        
+        # Open a socket to the controller
+        self.openSocket()
 
-    def readall(self):
-        resp = self.bus.recv(100) #100 should be enough, right?
+        # Set defaults
+        self.assertDefaultConfiguration()
+
+    @property
+    def ip(self):
+        return self._ip
+    @ip.setter
+    def ip(self, ipAddress):
+        self._ip = ipAddress
+
+    def openSocket(self):
+        self.logger.info('Establishing socket connection')
+        self.iolog.info('*** Establishing socket connection ***')
+        self.bus = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)
+        self.bus.settimeout(5)
+        self.bus.connect((self._ip, 1234))
+
+    def write(self, command, lag=0.1, attempts=0):
+        formattedCommand = '{:s}\n'.format(command).encode()
+        
+        if attempts < 2:
+            try:
+                self.iolog.info(formattedCommand)
+                self.bus.send(formattedCommand)
+                sleep(lag)
+            except ConnectionResetError as e:
+                self.logger.info('Connection reset.  Re-establishing')
+                self.iolog.info('*** Connection reset.  Re-establishing ***')
+                self.openSocket()
+                self.write(command, lag, attempts=attempts+1)
+        else:
+            raise ConnectionError('Cannot re-establish connection')
+
+    def readall(self, attempts=0):
+        if attempts < 2:
+            try:
+                self.write('++read eoi')
+                resp = self.bus.recv(100) #100 should be enough, right?
+                self.iolog.info(resp)
+            except ConnectionResetError as e:
+                self.logger.info('Connection reset.  Re-establishing')
+                self.iolog.info('*** Connection reset.  Re-establishing ***')
+                self.openSocket()
+                self.readall(attempts=attempts+1)
+        else:
+            raise ConnectionError('Cannot re-establish connection')
+                
         return resp.rstrip()
 
     def ask(self, query, *args, **kwargs):
@@ -207,6 +255,9 @@ class PrologixUSB(_prologix_base):
     """
 
     def __init__(self, port='/dev/ttyUSBgpib', log=False):
+        # do common startup routines
+        super(PrologixUSB, self).__init__()
+        
         # create a serial port object
         self.bus = Serial(port, baudrate=115200, rtscts=1, log=log)
         # if this doesn't work, try settin rtscts=0
@@ -214,18 +265,18 @@ class PrologixUSB(_prologix_base):
         # flush whatever is hanging out in the buffer
         self.bus.readall()
 
-        # don't save settings (to avoid wearing out EEPROM)
-        self.savecfg = False
-
-        # do common startup routines
-        super(PrologixUSB, self).__init__()
+        # Set defaults
+        self.assertDefaultConfiguration()
 
     def write(self, command, lag=0.1):
-        self.bus.write("%s\r" % command)
+        formattedCommand = '{:s}\r'.format(command)
+        self.iolog.info(formattedCommand)
+        self.bus.write(formattedCommand)
         sleep(lag)
 
     def readall(self):
         resp = self.bus.readall()
+        self.iolog.info(resp)
         return resp.rstrip()
 
     def ask(self, query, *args, **kwargs):
