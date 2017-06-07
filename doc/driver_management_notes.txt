@@ -21,6 +21,11 @@ Driver
   Inherits Model
     Inherits Instrument
 
+Connection
+	read/write/query/open/close
+	
+	
+
 *** visawrapper ***
 ResourcePyvisa
   Inherits pyvisa.resource 

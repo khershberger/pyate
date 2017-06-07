@@ -15,7 +15,7 @@ class ResourceManager():
     
     Attributes:
     
-    """
+    """ 
     
     resourcemanager = None
     prologix = {}
