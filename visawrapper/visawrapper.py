@@ -49,7 +49,7 @@ class ResourceManager():
         # First see if this resource_name is already created
         if resource_name in cls.resources:
             logger.info('Resource already exists: {:s}'.format(resource_name))
-            resource = cls.resources['resource_name']
+            resource = cls.resources[resource_name]
         else:
             logger.info('Creating new resource: {:s}'.format(resource_name))
             resource_prefix = resource_name.split(sep='::')[0]
