@@ -1,5 +1,5 @@
 
-import visawrapper.prologix
-import visawrapper
-
+def main():
+    print('pate.pate.main()')
+    
 
