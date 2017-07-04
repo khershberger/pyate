@@ -9,9 +9,10 @@ setup(name = 'PATE',
       version = '0.1.0',
       packages = ['pate'],
       install_requires = [
-          'pyvisa',
-          'pandas',
           'matplotlib',
-          'pyqt5'
+          'pandas',
+          'pyqt5',
+          'pyvisa',
+          'pyserial'
           ]
       )
