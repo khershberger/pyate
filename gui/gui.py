@@ -27,6 +27,11 @@ from PyQt5.QtGui import (QIcon, QFont)
 from PyQt5.QtCore import QCoreApplication
 # from PyQt5 import QtCore
 
+from qtconsole.qt import QtGui
+from qtconsole.rich_jupyter_widget import RichJupyterWidget
+from qtconsole.inprocess import QtInProcessKernelManager
+from IPython.lib import guisupport
+
 class loggingAdapter(logging.Handler):
     def __init__(self, parent, widget):
         super().__init__()
@@ -36,6 +41,51 @@ class loggingAdapter(logging.Handler):
         msg = self.format(record)
         self.widget.appendPlainText(msg)
 
+class ConsoleWidget(RichJupyterWidget):
+    def __init__(self, customBanner=None, *args, **kwargs):
+        super(ConsoleWidget, self).__init__(*args, **kwargs)
+
+        if customBanner is not None:
+            self.banner = customBanner
+
+        self.font_size = 6
+        self.kernel_manager = QtInProcessKernelManager()
+        self.kernel_manager.start_kernel(show_banner=False)
+        self.kernel_manager.kernel.gui = 'qt'
+        self.kernel_client = self._kernel_manager.client()
+        self.kernel_client.start_channels()
+
+        def stop():
+            self.kernel_client.stop_channels()
+            self.kernel_manager.shutdown_kernel()
+        self.exit_requested.connect(stop)
+
+    def push_vars(self, variableDict):
+        """
+        Given a dictionary containing name / value pairs, push those variables
+        to the Jupyter console widget
+        """
+        self.kernel_manager.kernel.shell.push(variableDict)
+
+    def clear(self):
+        """
+        Clears the terminal
+        """
+        self._control.clear()
+
+        # self.kernel_manager
+
+    def print_text(self, text):
+        """
+        Prints some plain text to the console
+        """
+        self._append_plain_text(text)
+
+    def execute_command(self, command):
+        """
+        Execute a command in the frame of the console widget
+        """
+        self._execute(command, False)
 
 class PateMainWindow(QMainWindow):
     def __init__(self):
@@ -44,6 +94,8 @@ class PateMainWindow(QMainWindow):
         self.initUI()
 
     def initUI(self):
+        self.setWindowIcon(self.style().standardIcon(QStyle.SP_ComputerIcon))
+        
         # Create main widget
         mainWidget = QWidget(self)
 
@@ -53,11 +105,14 @@ class PateMainWindow(QMainWindow):
         logAdapter = loggingAdapter(self, textEdit)
         logging.getLogger().setLevel(logging.DEBUG)
         logging.getLogger().addHandler(logAdapter)
-
         logging.debug('Log adapter hopefully attached')
+
+        logging.info('Creating JupyterWidget')
+        jupyterWidgetConsole = ConsoleWidget()
 
         vbox = QVBoxLayout()
         vbox.addStretch(1)
+        vbox.addWidget(jupyterWidgetConsole)
         vbox.addWidget(textEdit)
         mainWidget.setLayout(vbox)
 
