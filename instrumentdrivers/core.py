@@ -33,9 +33,10 @@ def createInstrument(addr, type='generic'):
     logger.debug('Model = ' + model)    
     availableDrivers = {
             'DP832':  idrv.powersupply.PowerSupplyDP832,
-            'FSQ-26': idrv.signalanalyzer.VsaRohde,
+            'FSQ-26': idrv.spectrumanalyzer.VsaRohde,
             'E8267D': idrv.signalgenerator.VsgAgilent,
-            'E5071B': idrv.networkanalyzer.VnaAgilentENA
+            'E5071B': idrv.networkanalyzer.VnaAgilentENA,
+            'DG1032Z': idrv.waveformgenerator.PulseGenerator
         }
 
     if model in availableDrivers:
@@ -85,4 +86,20 @@ class Instrument:
         
     def close(self):
         self.res.close()
+        
+    def testConnection(self, attemptReset=False, triesLeft=1):
+        try:
+            self.refreshIDN()
+            return True
+        except visawrapper.pyvisa.errors.VisaIOError as e:
+            if attemptReset and (triesLeft > 0):
+                self.res.close()
+                self.res.open()
+                return self.testConnection(attemptReset=attemptReset, 
+                                           triesLeft=triesLeft-1)
+            else:
+                return False
+
+                    
+                
         
