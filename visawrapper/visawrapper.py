@@ -50,6 +50,7 @@ class ResourceManager():
         if resource_name in cls.resources:
             logger.info('Resource already exists: {:s}'.format(resource_name))
             resource = cls.resources[resource_name]
+            resource.open()
         else:
             logger.info('Creating new resource: {:s}'.format(resource_name))
             resource_prefix = resource_name.split(sep='::')[0]
@@ -74,6 +75,8 @@ class ResourceManager():
         
     @classmethod
     def getResources(cls):
+        logger = logging.getLogger(__name__) 
+        logger.info('getResources()')
         return cls.resources
     
     @classmethod
@@ -92,10 +95,10 @@ class ResourcePrologix():
         resource_params = resource_name.split(sep='::')
         
         self._ip   = resource_params[1]
-        self._port = resource_params[2]
-        self._addr = resource_params[3]
+        self._port = int(resource_params[2])
+        self._addr = int(resource_params[3])
 
-        if self._port != '1234':
+        if self._port != 1234:
             raise AttributeError('Prologix interface only supports port 1234')
         
         self.interface = ResourceManager.getPrologixInterface(self._ip)
