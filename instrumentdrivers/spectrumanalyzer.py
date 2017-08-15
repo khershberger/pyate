@@ -113,6 +113,17 @@ class Vsa(idcore.Instrument):
         else:
             self.res.write(':SENse:POWer:RF:ATTenuation {:g}'.format(float(attenuation)))
 
+    def getRefLevel(self):
+        return self.res.query(':DISP:WIND1:TRAC:Y:RLEV?')
+            
+    def setRefLevel(self, level):
+        self.res.write(':DISP:WIND1:TRAC:Y:RLEV {:g} dBm'.format(level))
+        
+    def setYAxis(self, scale=100, refPosition=1.0):
+        refPositionPct = round(100*refPosition)
+        self.res.write(':DISP:TRAC:Y {:g}'.format(scale))
+        self.res.write(':DISP:TRAC:Y:RPOS {:d}PCT'.format(refPositionPct))
+        
     def sweep_time(self, sweeptime):
         self.res.write('SENS:SWE:TIME {:g}'.format(float(sweeptime)))
 
