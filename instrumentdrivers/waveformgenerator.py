@@ -9,10 +9,10 @@ import math
 import numpy as np
 import time
 
-class PulseGenerator(idcore.Instrument):
+class WaveformGenerator(idcore.Instrument):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.drivername = 'PulseGenerator'
+        self.drivername = 'WaveformGenerator'
         
     def sendWaveform(self, data, samplerate, amplitude, offset=0, channel=1):
         """
