@@ -155,7 +155,7 @@ class _prologix_base(object):
         self.write('++mode 1')
 
         # Disable 'Read-after-Write'
-        self.auto = False
+        self.auto = True
         
     def ping(self):
         return self.ask('++ver') 
@@ -200,7 +200,7 @@ class PrologixEthernet(_prologix_base):
         self.bus.settimeout(5)
         self.bus.connect((self._ip, 1234))
 
-    def write(self, command, lag=0.1, attempts=0):
+    def write(self, command, lag=0.0, attempts=0):
         formattedCommand = '{:s}\n'.format(command).encode()
         
         if attempts < 2:
@@ -211,6 +211,10 @@ class PrologixEthernet(_prologix_base):
             except ConnectionResetError as e:
                 self.logger.info('Connection reset.  Re-establishing')
                 self.iolog.info('*** Connection reset.  Re-establishing ***')
+                self.openSocket()
+                self.write(command, lag, attempts=attempts+1)
+            except ConnectionAbortedError as e:
+                self.logger.info('Connection aborted.  Re-establishing')
                 self.openSocket()
                 self.write(command, lag, attempts=attempts+1)
         else:
@@ -230,7 +234,7 @@ class PrologixEthernet(_prologix_base):
         else:
             raise ConnectionError('Cannot re-establish connection')
                 
-        return resp.rstrip()
+        return resp.decode().rstrip()
 
     def ask(self, query, *args, **kwargs):
         """ Write to the bus, then read response. """
