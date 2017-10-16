@@ -18,6 +18,7 @@ from PyQt5.QtWidgets import (
     QAction,
     qApp,
     QApplication,
+    QHBoxLayout,
     QPlainTextEdit,
     QStyle,
     QTextEdit,
@@ -42,7 +43,7 @@ class loggingAdapter(logging.Handler):
         self.widget.appendPlainText(msg)
 
 class ConsoleWidget(RichJupyterWidget):
-    def __init__(self, customBanner=None, *args, **kwargs):
+    def __init__(self, *args, customBanner=None,  myWidget=None, **kwargs):
         super(ConsoleWidget, self).__init__(*args, **kwargs)
 
         if customBanner is not None:
@@ -59,6 +60,8 @@ class ConsoleWidget(RichJupyterWidget):
             self.kernel_client.stop_channels()
             self.kernel_manager.shutdown_kernel()
         self.exit_requested.connect(stop)
+        
+        self.kernel_manager.kernel.shell.push({'widget':self,'myWidget':myWidget})
 
     def push_vars(self, variableDict):
         """
@@ -107,11 +110,18 @@ class PateMainWindow(QMainWindow):
         logging.getLogger().addHandler(logAdapter)
         logging.debug('Log adapter hopefully attached')
 
+        jupyterDisplayWidget = QWidget()
+        jbox = QHBoxLayout()
+        jbox.addWidget(QPlainTextEdit())
+        jbox.addWidget(QPlainTextEdit())
+        jupyterDisplayWidget.setLayout(jbox)
+
         logging.info('Creating JupyterWidget')
-        jupyterWidgetConsole = ConsoleWidget()
+        jupyterWidgetConsole = ConsoleWidget(myWidget=jupyterDisplayWidget)
 
         vbox = QVBoxLayout()
         vbox.addStretch(1)
+        vbox.addWidget(jupyterDisplayWidget)
         vbox.addWidget(jupyterWidgetConsole)
         vbox.addWidget(textEdit)
         mainWidget.setLayout(vbox)
