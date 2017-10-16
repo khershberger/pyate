@@ -4,12 +4,12 @@ Created on Jul 12, 2017
 @author: kyleh
 '''
 
-import instrumentdrivers.core as idcore
+from .instrument import Instrument
 import math
 import numpy as np
 import time
 
-class WaveformGenerator(idcore.Instrument):
+class WaveformGenerator(Instrument):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.drivername = 'WaveformGenerator'

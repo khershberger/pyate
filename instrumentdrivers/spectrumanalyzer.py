@@ -4,10 +4,10 @@ Created on Jul 4, 2017
 @author: kyleh
 '''
 
-import instrumentdrivers.core as idcore
+from .instrument import Instrument
 import numpy as np
 
-class Vsa(idcore.Instrument):
+class Vsa(Instrument):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.drivername = 'Vsa'
