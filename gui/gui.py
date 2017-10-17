@@ -18,8 +18,12 @@ from PyQt5.QtWidgets import (
     QAction,
     qApp,
     QApplication,
+    QGroupBox,
+    QHBoxLayout,
     QPlainTextEdit,
+    QRadioButton,
     QStyle,
+    QTabWidget,
     QTextEdit,
     QVBoxLayout,
     QWidget)
@@ -99,21 +103,44 @@ class PateMainWindow(QMainWindow):
         # Create main widget
         mainWidget = QWidget(self)
 
-        textEdit = QPlainTextEdit()
-        textEdit.setReadOnly(True)
+        ### Construct log tab
 
-        logAdapter = loggingAdapter(self, textEdit)
+        optionButtonsGroup = QGroupBox()
+        optionButtonsLayout = QVBoxLayout()
+        optionRadio1 = QRadioButton('INFO')
+        optionRadio2 = QRadioButton('DEBUG')
+        optionButtonsLayout.addWidget(optionRadio1)
+        optionButtonsLayout.addWidget(optionRadio2)
+        optionButtonsGroup.setLayout(optionButtonsLayout)
+        
+        textEditLog1 = QPlainTextEdit()
+        textEditLog1.setReadOnly(True)
+        logAdapter = loggingAdapter(self, textEditLog1)
         logging.getLogger().setLevel(logging.DEBUG)
         logging.getLogger().addHandler(logAdapter)
         logging.debug('Log adapter hopefully attached')
+        
+        loggingWidget = QWidget()
+        loggingWIdgetLayout = QHBoxLayout()
+        loggingWIdgetLayout.addWidget(optionButtonsGroup)
+        loggingWIdgetLayout.addWidget(textEditLog1)
+        loggingWidget.setLayout(loggingWIdgetLayout)
+        
+        textEditLog2 = QPlainTextEdit()
+        textEditLog2.setReadOnly(True)
+
+        logTabWidget = QTabWidget()
+        logTabWidget.addTab(loggingWidget, 'Log')
+        logTabWidget.addTab(textEditLog2, 'VISA')
 
         logging.info('Creating JupyterWidget')
         jupyterWidgetConsole = ConsoleWidget()
 
+
         vbox = QVBoxLayout()
         vbox.addStretch(1)
         vbox.addWidget(jupyterWidgetConsole)
-        vbox.addWidget(textEdit)
+        vbox.addWidget(logTabWidget)
         mainWidget.setLayout(vbox)
 
         self.setCentralWidget(mainWidget)
