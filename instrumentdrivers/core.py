@@ -5,37 +5,38 @@ Created on Thu Mar 30 14:09:15 2017
 @author: kyleh
 """
 
-import instrumentdrivers as idrv
+from .instrument import Instrument
+from . import powersupply
+from . import spectrumanalyzer
+from . import signalgenerator
+from . import networkanalyzer
+from . import waveformgenerator
+from . import powermeter
+from . import oscilloscope
+
 import logging
 import visawrapper
 
-def InstrumentDriverException(Exception):
-    pass
-
-def parseIdnString(idn):
-    parsed = idn.split(sep=',')
-    return {'vendor':   parsed[0].strip(),
-            'model' :   parsed[1].strip(),
-            'serial':   parsed[2].strip(),
-            'frimware': parsed[3].strip() } 
-    
 def createInstrument(addr, type='generic'):
     logger = logging.getLogger(__name__)
     
     # First get instrument resource
     #res = pyvisa.ResourceManager().open_resource(addr)
     res = visawrapper.ResourceManager.open_resource(addr)
-    identity = parseIdnString(res.query('*IDN?'))
+    identity = Instrument.parseIdnString(res.query('*IDN?'))
     res.close()
 
     model = identity['model']
 
     logger.debug('Model = ' + model)    
     availableDrivers = {
-            'DP832':  idrv.powersupply.PowerSupplyDP832,
-            'FSQ-26': idrv.signalanalyzer.VsaRohde,
-            'E8267D': idrv.signalgenerator.VsgAgilent,
-            'E5071B': idrv.networkanalyzer.VnaAgilentENA
+            'DP832':   powersupply.PowerSupplyDP832,
+            'FSQ-26':  spectrumanalyzer.VsaRohde,
+            'E8267D':  signalgenerator.VsgAgilent,
+            'E5071B':  networkanalyzer.VnaAgilentENA,
+            'DG1032Z': waveformgenerator.WaveformGenerator,
+            'E4417A':  powermeter.PowerMeter,
+            'DS1054Z': oscilloscope.Oscilloscope
         }
 
     if model in availableDrivers:
@@ -44,45 +45,6 @@ def createInstrument(addr, type='generic'):
         logger.error('Unknown model: ' + model)
         return None
 
-class Instrument:
-    def __init__(self, *args, **kwargs):
-        self.logger = logging.getLogger(__name__)
-        self.drivername = 'Instrument'
-
-        if 'resource' in kwargs:
-            if 'addr' in kwargs:
-                self.logger.warning('Called with res and addr.  res will take precidence')
-            self.res = kwargs['resource']
-        elif 'addr' in kwargs:
-            self.res = visawrapper.ResourceManager.open_resource(kwargs['addr'])
-        else:
-            self.logger.error('Attempt to create instrument without address')
-            raise InstrumentDriverException('Attempt to create instrument without address')
-        
-        self.res.open()
-        self.res.read_termination = '\n'
-        self.refreshIDN()
-
-    @property
-    def res(self):
-        return self._res
-    @res.setter
-    def res(self, resource):
-        self._res = resource
-        
-    @property
-    def resource(self):
-        return self._res
-    @resource.setter
-    def resource(self, resource):
-        self._res = resource
-
-    def refreshIDN(self):
-        self.identity = parseIdnString(self.res.query('*IDN?'))
-        
-    def open(self):
-        self.res.open()
-        
-    def close(self):
-        self.res.close()
+ 
+                
         

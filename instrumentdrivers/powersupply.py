@@ -4,9 +4,9 @@ Created on Jul 4, 2017
 @author: kyleh
 '''
 
-import instrumentdrivers.core as idcore
+from .instrument import Instrument
 
-class PowerSupply(idcore.Instrument):
+class PowerSupply(Instrument):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.drivername = 'PowerSupply'

@@ -4,11 +4,11 @@ Created on Jul 4, 2017
 @author: kyleh
 '''
 
-import instrumentdrivers.core as idcore
+from .instrument import Instrument
 import math
 import numpy as np
 
-class NetworkAnalyzer(idcore.Instrument):
+class NetworkAnalyzer(Instrument):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.drivername = 'NetworkAnalyzer'

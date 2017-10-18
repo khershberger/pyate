@@ -46,7 +46,7 @@ class loggingAdapter(logging.Handler):
         self.widget.appendPlainText(msg)
 
 class ConsoleWidget(RichJupyterWidget):
-    def __init__(self, customBanner=None, *args, **kwargs):
+    def __init__(self, *args, customBanner=None,  myWidget=None, **kwargs):
         super(ConsoleWidget, self).__init__(*args, **kwargs)
 
         if customBanner is not None:
@@ -63,6 +63,8 @@ class ConsoleWidget(RichJupyterWidget):
             self.kernel_client.stop_channels()
             self.kernel_manager.shutdown_kernel()
         self.exit_requested.connect(stop)
+        
+        self.kernel_manager.kernel.shell.push({'widget':self,'myWidget':myWidget})
 
     def push_vars(self, variableDict):
         """
@@ -133,12 +135,20 @@ class PateMainWindow(QMainWindow):
         logTabWidget.addTab(loggingWidget, 'Log')
         logTabWidget.addTab(textEditLog2, 'VISA')
 
+        jupyterDisplayWidget = QWidget()
+        jbox = QHBoxLayout()
+        jbox.addWidget(QPlainTextEdit())
+        jbox.addWidget(QPlainTextEdit())
+        jupyterDisplayWidget.setLayout(jbox)
+
         logging.info('Creating JupyterWidget')
-        jupyterWidgetConsole = ConsoleWidget()
+
+        jupyterWidgetConsole = ConsoleWidget(myWidget=jupyterDisplayWidget)
 
 
         vbox = QVBoxLayout()
         vbox.addStretch(1)
+        vbox.addWidget(jupyterDisplayWidget)
         vbox.addWidget(jupyterWidgetConsole)
         vbox.addWidget(logTabWidget)
         mainWidget.setLayout(vbox)
