@@ -7,8 +7,16 @@ Created on Tue Oct 10 13:51:46 2017
 
 import logging
 import visawrapper
+from . import manager 
 
 class Instrument:
+    @classmethod
+    def registerModels(cls, models):
+        def _internal(pyclass):
+            manager.InstrumentManager.registerInstrument(models, pyclass)
+            return pyclass
+        return _internal
+    
     def __init__(self, *args, **kwargs):
         self.logger = logging.getLogger(__name__)
         self.drivername = 'Instrument'
@@ -21,7 +29,7 @@ class Instrument:
             self.res = visawrapper.ResourceManager.open_resource(kwargs['addr'])
         else:
             self.logger.error('Attempt to create instrument without address')
-            raise InstrumentDriverException('Attempt to create instrument without address')
+            raise manager.InstrumentDriverException('Attempt to create instrument without address')
         
         self.res.open()
         self.res.read_termination = '\n'
@@ -41,16 +49,8 @@ class Instrument:
     def resource(self, resource):
         self._res = resource
         
-    @classmethod
-    def parseIdnString(cls, idn):
-        parsed = idn.split(sep=',')
-        return {'vendor':   parsed[0].strip(),
-                'model' :   parsed[1].strip(),
-                'serial':   parsed[2].strip(),
-                'frimware': parsed[3].strip() } 
-
     def refreshIDN(self):
-        self.identity = self.parseIdnString(self.res.query('*IDN?'))
+        self.identity = manager.InstrumentManager.parseIdnString(self.res.query('*IDN?'))
         
     def open(self):
         self.res.open()
@@ -70,5 +70,3 @@ class Instrument:
                                            triesLeft=triesLeft-1)
             else:
                 return False
-
-                   

@@ -2,8 +2,8 @@
 Instrument drivers package __init__ file
 """
 
-def InstrumentDriverException(Exception):
-    pass
+from .manager import InstrumentManager
+from .instrument import Instrument
 
 from . import instrument
 from . import networkanalyzer
@@ -13,6 +13,3 @@ from . import powersupply
 from . import signalgenerator
 from . import spectrumanalyzer
 from . import waveformgenerator
-
-from .core import createInstrument
-

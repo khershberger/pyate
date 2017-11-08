@@ -31,6 +31,7 @@ class Vsg(Instrument):
         else:
             self.res.write('OUTP 0')
 
+@Instrument.registerModels(['E8267D'])
 class VsgAgilent(Vsg):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -62,6 +63,7 @@ class VsgAgilent(Vsg):
         #self.res.write(':SOUR:RAD:ARB:MDES:ALCH M4')         # ALC Hold marker assignment
         #self.res.write(':SOUR:RAD:ARB:MDES:PULS M3');        # RF blanking marker assignment
 
+#@Instrument.registerModels(['DG1032Z'])
 class VsgRohde(Vsg):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

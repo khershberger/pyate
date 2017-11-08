@@ -12,7 +12,8 @@ class NetworkAnalyzer(Instrument):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.drivername = 'NetworkAnalyzer'
-        
+
+@Instrument.registerModels(['E5071B'])
 class VnaAgilentENA(NetworkAnalyzer):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

@@ -33,6 +33,7 @@ class PowerSupply(Instrument):
         self.logger.info('Measured Voltage = {:g}'.format(result))
         return result
 
+@Instrument.registerModels(['DP832'])
 class PowerSupplyDP832(PowerSupply):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

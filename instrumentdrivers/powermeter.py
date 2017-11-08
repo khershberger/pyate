@@ -5,10 +5,8 @@ Created on Jul 12, 2017
 '''
 
 from .instrument import Instrument
-import math
-import numpy as np
-import time
 
+@Instrument.registerModels(['E4417A'])
 class PowerMeter(Instrument):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

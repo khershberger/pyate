@@ -5,20 +5,15 @@ Created on Aug 23, 2017
 '''
 
 from .instrument import Instrument
-import math
 import numpy as np
-import time
 
+
+@Instrument.registerModels(['DS1054Z'])
 class Oscilloscope(Instrument):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.drivername = 'Oscilloscope'
         
-    def getSupportedModels():
-        supportedModels = [
-                'DS1054Z']
-        return supportedModels
-    
     def getTrace(self, channel):
         self.res.write(':WAV:SOUR {:s}', channel)
         xorigin    = float(self.res.query(':WAV:XOR?'))

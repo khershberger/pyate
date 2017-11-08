@@ -127,6 +127,7 @@ class Vsa(Instrument):
     def sweep_time(self, sweeptime):
         self.res.write('SENS:SWE:TIME {:g}'.format(float(sweeptime)))
 
+#@Instrument.registerModels(['UNK'])
 class VsaAgilent(Vsa):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -240,7 +241,7 @@ class VsaAgilent(Vsa):
         
         return np.stack((xx,yy))
 
-
+@Instrument.registerModels(['FSQ-26'])
 class VsaRohde(Vsa):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
