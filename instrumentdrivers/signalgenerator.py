@@ -63,6 +63,12 @@ class VsgAgilent(Vsg):
         #self.res.write(':SOUR:RAD:ARB:MDES:ALCH M4')         # ALC Hold marker assignment
         #self.res.write(':SOUR:RAD:ARB:MDES:PULS M3');        # RF blanking marker assignment
 
+    def setModulationState(self, enable):
+        if enable:
+            self.res.write(':OUTPut:MODulation:STATe 1')
+        else:
+            self.res.write(':OUTPut:MODulation:STATe 0')
+
 #@Instrument.registerModels(['DG1032Z'])
 class VsgRohde(Vsg):
     def __init__(self, *args, **kwargs):
@@ -71,3 +77,9 @@ class VsgRohde(Vsg):
 
     def setFrequency(self, freq):
         self.res.write('SOUR:FREQ {:g}GHz'.format(freq/1e9))
+        
+    def setModulationState(self, enable):
+        if enable:
+            self.res.write('SOUR:MOD:STAT 1')
+        else:
+            self.res.write('SOUR:MOD:STAT 0')        
