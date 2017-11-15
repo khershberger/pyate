@@ -6,6 +6,7 @@ from .manager import InstrumentManager
 from .instrument import Instrument
 
 from . import instrument
+from . import multimeter
 from . import networkanalyzer
 from . import oscilloscope
 from . import powermeter
