@@ -91,7 +91,7 @@ class Vsa(Instrument):
     def getVideoBandwidth(self):
         return self.res.query('BAND:VID?')
                 
-    def setFreq(self, start=None, stop=None, center=None, span=None):
+    def setFrequency(self, start=None, stop=None, center=None, span=None):
         if ( (start is not None or stop is not None) and (center is not None or span is not None)):
             self.logger.warning('{:s}.setFreq(): Conflicting parameters specified.  Defaulting to center/span'.format(self.drivername))
 

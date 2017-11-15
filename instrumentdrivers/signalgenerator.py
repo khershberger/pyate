@@ -19,10 +19,10 @@ class Vsg(Instrument):
     def getFrequency(self):
         return float(self.res.query('SOUR:FREQ?'))
 
-    def getLevel(self):
+    def getAmplitude(self):
         return self.res.query('SOUR:POW:LEV:IMM:AMPL?')
             
-    def setLevel(self, level):
+    def setAmplitude(self, level):
         self.res.query('SOUR:POW:LEV:IMM:AMPL {:g}DBM;*OPC?'.format(level))
         
     def setOutputState(self, enable):
@@ -30,7 +30,7 @@ class Vsg(Instrument):
             self.res.write('OUTP 1')
         else:
             self.res.write('OUTP 0')
-
+            
 @Instrument.registerModels(['E8267D'])
 class VsgAgilent(Vsg):
     def __init__(self, *args, **kwargs):
