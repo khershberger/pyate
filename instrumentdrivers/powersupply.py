@@ -18,18 +18,29 @@ class PowerSupply(Instrument):
             result = self.res.write(':OUTP OFF')
         return result
     
-    def setVoltage(self, value):
-        result = self.res.query(':VOLT {:g};:VOLT?'.format(value))
+    def setVoltage(self, channel, value):
+        self.res.write(':SOUR{:d}:VOLT {:g}'.format(channel, value))
+        result = float(self.res.query(':SOUR{:d}:VOLT?'.format(channel)))
+        
         self.logger.info('Readback = {:g}'.format(result))
         return result
 
-    def setCurrent(self, value):
-        result = self.res.query(':CURR {:g};:CURR?'.format(value))
+    def setCurrent(self, channel, value):
+        self.res.write(':SOUR{:d}:CURR {:g}'.format(channel, value))
+        result = float(self.res.query(':SOUR{:d}:CURR?'.format(channel)))
+        
         self.logger.info('Readback = {:g}'.format(result))
         return result
         
-    def measVoltage(self):
-        result = self.res.query(':MEAS:CURR?')
+    def measVoltage(self, channel):
+        result = float(self.res.query(':MEAS:VOLT? CH{:d}'.format(channel)))
+        
+        self.logger.info('Measured Voltage = {:g}'.format(result))
+        return result
+
+    def measCurrent(self, channel):
+        result = float(self.res.query(':MEAS:CURR? CH{:d}'.format(channel)))
+        
         self.logger.info('Measured Voltage = {:g}'.format(result))
         return result
 
