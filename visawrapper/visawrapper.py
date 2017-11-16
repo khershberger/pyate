@@ -9,6 +9,9 @@ import visawrapper.prologix
 class InitializationError(Exception):
     pass
 
+class ResourceTimeout(Exception):
+    pass
+
 class ResourceManager():
     """
     Singleton to store resource instances
@@ -114,7 +117,8 @@ class ResourcePrologix():
     def query(self, command, delay=0.1):
         self.interface.addr = self._addr
         self.interface.write(command, lag=delay)
-        return self.interface.readall()
+        #return self.interface.readall()
+        return self.read()
 
     def open(self):
         pass
