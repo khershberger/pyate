@@ -46,8 +46,7 @@ class PowerMeter(Instrument):
     def getPower(self, channel, resolution=3):
         self.write('CONF{:d}? DEF,{:d},(@{:d})'.format(channel, resolution, channel))
         self.write('INIT{:d}'.format(channel))
-        self.write('FETC{:d}?'.format(channel))
-
-        return float(self.read())
-
-    
+#        self.write('FETC{:d}?'.format(channel))
+#        return float(self.read())
+        return float(self.query('FETC{:d}?'.format(channel)))
+        
