@@ -227,7 +227,7 @@ class PrologixEthernet(_prologix_base):
         if attempts < 2:
             try:
                 self.write('++read eoi')
-                resp = self.bus.recv(100) #100 should be enough, right?
+                resp = self.bus.recv(128) # 128 should be enough, right?
                 self.iolog.info(resp)
             except ConnectionResetError as e:
                 self.logger.info('Connection reset.  Re-establishing')
