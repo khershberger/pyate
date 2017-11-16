@@ -53,6 +53,8 @@ class ResourceManager():
         if resource_name in cls.resources:
             logger.info('Resource already exists: {:s}'.format(resource_name))
             resource = cls.resources[resource_name]
+            
+            resource.close()
             resource.open()
         else:
             logger.info('Creating new resource: {:s}'.format(resource_name))
@@ -85,6 +87,11 @@ class ResourceManager():
     @classmethod
     def getResource(cls, name):
         return cls.resources[name]
+
+    @classmethod
+    def closeAll(cls):
+        for res in cls.resources:
+            cls.resources[res].close()
 
 class ResourcePrologix():
     """
