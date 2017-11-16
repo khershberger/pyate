@@ -7,7 +7,14 @@ Created on Tue Oct 10 13:51:46 2017
 
 import logging
 import visawrapper
+import pyvisa.errors
 from . import manager 
+
+class InstrumentIOError(Exception):
+    pass
+
+class InstrumentNothingToRead(Exception):
+    pass
 
 class Instrument:
     @classmethod
@@ -57,6 +64,51 @@ class Instrument:
         
     def close(self):
         self.res.close()
+        
+    def write(self, command, retries=3):
+        for n in range(retries):
+            try:
+                self.res.write(command)
+                return
+            except visawrapper.prologix.PrologixTimeout as e:
+                self.logger.warning('Prologix Timeout occured during Instrument.write() operation')
+            except pyvisa.VisaIOError as e:
+                if e.error_code == pyvisa.errors.VI_ERROR_TMO:
+                    self.logger.warning('NI Timeout occured during Instrument.write() operation')
+                else:
+                    raise e
+        
+        raise InstrumentIOError('Instrument.write() Max retries exceeded')
+        
+    def read(self):
+        try:
+            return self.res.read()
+        except visawrapper.prologix.PrologixTimeout as e:
+            self.logger.warning('Prologix Timeout occured during Instrument.write() operation')
+            raise InstrumentNothingToRead('Instrument.read() Nothing to read???')
+        except pyvisa.VisaIOError as e:
+            if e.error_code == pyvisa.errors.VI_ERROR_TMO:
+                self.logger.warning('NI Timeout occured during Instrument.read() operation')
+                raise InstrumentNothingToRead('Instrument.read() Nothing to read???')
+            else:
+                raise e
+
+        
+    def query(self, command, retries=3):
+        for n in range(retries):
+            self.write(command, retries)
+            try:
+                return self.res.read()
+            except visawrapper.prologix.PrologixTimeout as e:
+                self.logger.warning('Prologix Timeout occured during Instrument.read() operation')
+            except pyvisa.VisaIOError as e:
+                if e.error_code == pyvisa.errors.VI_ERROR_TMO:
+                    self.logger.warning('NI Timeout occured during Instrument.query() operation')
+                else:
+                    raise e
+                        
+        
+        raise InstrumentNothingToRead('Instrument.read() Nothing to read???')
         
     def testConnection(self, attemptReset=False, triesLeft=1):
         try:

@@ -21,16 +21,16 @@ class Vsa(Instrument):
         
 ### System Commands
     def preset(self):
-        self.res.write('*RST')
-        self.res.query('*OPC?')
+        self.write('*RST')
+        self.query('*OPC?')
         
     def align(self, automatic=False):
         if (automatic):
-            self.res.write(':CAL:AUTO ON')
+            self.write(':CAL:AUTO ON')
         else:
-            self.res.write(':CAL:AUTO OFF')
-            self.res.write(':CAL:ALL')
-            self.res.query('*OPC?') 
+            self.write(':CAL:AUTO OFF')
+            self.write(':CAL:ALL')
+            self.query('*OPC?') 
           
             #try:
             #    # Check how many minutes passed since last
@@ -45,28 +45,28 @@ class Vsa(Instrument):
             #    self.logger.info('{:g} minutes since last VSA alignment - Alignment is needed'.format(elapsed_time))
             #    PriorTimeOut = v_vsa.TimeOut
             #    v_vsa.Timeout=200
-            #    self.res.write':CAL:AUTO OFF')
-            #    self.res.write(':CAL:ALL')
-            #    result = self.res.query(v_vsa,'*OPC?') 
+            #    self.write':CAL:AUTO OFF')
+            #    self.write(':CAL:ALL')
+            #    result = self.query(v_vsa,'*OPC?') 
             #    v_vsa.Timeout=PriorTimeOut
             #    LAST_ALIGMENT_TIME=tic
             #else
             #    printlog(3, sprintf('%g minutes since last VSA alignment - Skipping alignment',elapsed_time))
             
     def init(self):
-        self.res.write('INIT:IMM')
+        self.write('INIT:IMM')
     def opc(self):
-        return self.res.query('*OPC?')
+        return self.query('*OPC?')
     def options(self):
-        return self.res.query(':SYST:OPTions?')
+        return self.query(':SYST:OPTions?')
     
     def setBlockFormat(self, datatype):
         if   datatype == 'ascii':
-            self.res.write(':FORM ASC')
+            self.write(':FORM ASC')
         elif datatype == 'single':
-            self.res.write(':FORM REAL32')
+            self.write(':FORM REAL32')
         elif datatype == 'double':
-            self.res.write(':FORM REAL')
+            self.write(':FORM REAL')
         else:
             self.logger.warning('{:s}.setBlockFormat(): Unknown mode {:s}'.format(self.drivername, datatype))
 
@@ -75,57 +75,57 @@ class Vsa(Instrument):
     def setBandwidth(self, video=None, resolution=None):
         if video is not None:
             if video == 'auto':
-                self.res.write('BAND:VID:AUTO ON')
+                self.write('BAND:VID:AUTO ON')
             else:
-                self.res.write('BAND:VID {:g} HZ'.format(video))
+                self.write('BAND:VID {:g} HZ'.format(video))
 
         if resolution is not None:
             if resolution == 'auto':
-                self.res.write('BAND:RES:AUTO ON')
+                self.write('BAND:RES:AUTO ON')
             else:
-                self.res.write('BAND:RES {:g} HZ'.format(resolution))
+                self.write('BAND:RES {:g} HZ'.format(resolution))
                 
     def getResolutionBandwidth(self):
-        return self.res.query('BAND:RES?')
+        return self.query('BAND:RES?')
 
     def getVideoBandwidth(self):
-        return self.res.query('BAND:VID?')
+        return self.query('BAND:VID?')
                 
     def setFrequency(self, start=None, stop=None, center=None, span=None):
         if ( (start is not None or stop is not None) and (center is not None or span is not None)):
             self.logger.warning('{:s}.setFreq(): Conflicting parameters specified.  Defaulting to center/span'.format(self.drivername))
 
         if start is not None:
-            self.res.write('FREQ:STARt {:g} GHZ', start/1e9)
+            self.write('FREQ:STARt {:g} GHZ', start/1e9)
 
         if stop is not None:
-            self.res.write('FREQ:STOP {:g} GHZ', stop/1e9)
+            self.write('FREQ:STOP {:g} GHZ', stop/1e9)
         
         if center is not None:
-            self.res.write('FREQ:CENTer {:g} GHZ', center/1e9)
+            self.write('FREQ:CENTer {:g} GHZ', center/1e9)
 
         if span is not None:
-            self.res.write('FREQ:SPAN {:g} HZ', span)
+            self.write('FREQ:SPAN {:g} HZ', span)
 
     def setAttenuation(self, attenuation):
         if attenuation == 'AUTO':
-            self.res.write(':SENse:POWer:RF:ATTenuation:AUTO ON')
+            self.write(':SENse:POWer:RF:ATTenuation:AUTO ON')
         else:
-            self.res.write(':SENse:POWer:RF:ATTenuation {:g}'.format(float(attenuation)))
+            self.write(':SENse:POWer:RF:ATTenuation {:g}'.format(float(attenuation)))
 
     def getRefLevel(self):
-        return self.res.query(':DISP:WIND1:TRAC:Y:RLEV?')
+        return self.query(':DISP:WIND1:TRAC:Y:RLEV?')
             
     def setRefLevel(self, level):
-        self.res.write(':DISP:WIND1:TRAC:Y:RLEV {:g} dBm'.format(level))
+        self.write(':DISP:WIND1:TRAC:Y:RLEV {:g} dBm'.format(level))
         
     def setYAxis(self, scale=100, refPosition=1.0):
         refPositionPct = round(100*refPosition)
-        self.res.write(':DISP:TRAC:Y {:g}'.format(scale))
-        self.res.write(':DISP:TRAC:Y:RPOS {:d}PCT'.format(refPositionPct))
+        self.write(':DISP:TRAC:Y {:g}'.format(scale))
+        self.write(':DISP:TRAC:Y:RPOS {:d}PCT'.format(refPositionPct))
         
     def sweep_time(self, sweeptime):
-        self.res.write('SENS:SWE:TIME {:g}'.format(float(sweeptime)))
+        self.write('SENS:SWE:TIME {:g}'.format(float(sweeptime)))
 
 #@Instrument.registerModels(['UNK'])
 class VsaAgilent(Vsa):
@@ -135,7 +135,7 @@ class VsaAgilent(Vsa):
         
             
     def getMode(self):
-        mode = self.res.query('INST:SEL?')
+        mode = self.query('INST:SEL?')
         
         modes = {
                 'WIMAXOFDMA': 'wimax',
@@ -148,28 +148,28 @@ class VsaAgilent(Vsa):
     
     def initBasebandIQ(self):
         pass
-#         self.res.write( ':INST BASIC')                 % Switch to IQ analyzer mode
-#         self.res.write( ':CONF:WAV')                   % Waveform analysis measurement
-#         self.res.write( ':ROSC:EXT:FREQ 10 MHz')       % Set External reference to 10 MHz
-#         self.res.write( ':ROSC:SOUR EXT')              % Select external reference
-#         self.res.write( ':TRIG:WAV:SOUR EXT1')         % External Trigger
-#         self.res.write( ':INIT:CONT OFF')              % Single trigger
-#         self.res.write( ':WAV:AVER:STAT OFF')          % TURN AVERAGING OFF
+#         self.write( ':INST BASIC')                 % Switch to IQ analyzer mode
+#         self.write( ':CONF:WAV')                   % Waveform analysis measurement
+#         self.write( ':ROSC:EXT:FREQ 10 MHz')       % Set External reference to 10 MHz
+#         self.write( ':ROSC:SOUR EXT')              % Select external reference
+#         self.write( ':TRIG:WAV:SOUR EXT1')         % External Trigger
+#         self.write( ':INIT:CONT OFF')              % Single trigger
+#         self.write( ':WAV:AVER:STAT OFF')          % TURN AVERAGING OFF
 
     def iqSweepTime(self):
         pass
-#         self.res.write( sprintf(':WAV:SWE:TIME %g', varargin{k+1}))
+#         self.write( sprintf(':WAV:SWE:TIME %g', varargin{k+1}))
 
     def iqBandwidth(self):
         """
         Information BW
         """
-        #self.res.write( sprintf(':WAV:BAND %g', varargin{k+1}))
+        #self.write( sprintf(':WAV:BAND %g', varargin{k+1}))
     def iqSamplerate(self):
         """
         IQ Sample Rate
         """
-        #self.res.write( sprintf(':WAV:SRAT %g', varargin{k+1}))
+        #self.write( sprintf(':WAV:SRAT %g', varargin{k+1}))
     def iqFetchData(self):
         """
         This assumes that a measurement has already been triggered 
@@ -178,11 +178,11 @@ class VsaAgilent(Vsa):
         """
         
         """
-        self.res.write( ':FORM:BORD SWAP')         % Set to little-endian byte order (PC)
+        self.write( ':FORM:BORD SWAP')         % Set to little-endian byte order (PC)
         
         % Don't know if this works....
-        self.res.write( ':FORM REAL,32')           % Set to 64 bit real numbers (32 should work as well)
-        self.res.write( ':FETCh:WAV1?')
+        self.write( ':FORM REAL,32')           % Set to 64 bit real numbers (32 should work as well)
+        self.write( ':FETCh:WAV1?')
         params = binblockread(v_vsa, 'single')
         % Documented on page 304 of X-Series signal analyzer I/Q
         % mode users and programmers reference
@@ -205,7 +205,7 @@ class VsaAgilent(Vsa):
         v_vsa.InputBufferSize = 8*result.num_samples + 256
         fopen(v_vsa)
         
-        self.res.write( ':FETCh:WAV0?')
+        self.write( ':FETCh:WAV0?')
         sadata = binblockread(v_vsa, 'single')
 
         sadata = transpose(reshape(sadata, 2, length(sadata)/2))
@@ -215,28 +215,28 @@ class VsaAgilent(Vsa):
 
     def setMode(self, mode='spectrum'):
         if   mode == 'spectrum':
-            self.res.write(':INST SA')
-            self.res.write( 'CONFigure:SANalyzer')
+            self.write(':INST SA')
+            self.write( 'CONFigure:SANalyzer')
         elif mode == 'wimax':
-            self.res.write(':INST WIMAXOFDMA')
-            self.res.query('*OPC?')
+            self.write(':INST WIMAXOFDMA')
+            self.query('*OPC?')
         elif mode == 'wlan':
-            self.res.write(':INST WLAN')
-            self.res.write(':RAD:STAN AG') 
-            self.res.query('*OPC?')
+            self.write(':INST WLAN')
+            self.write(':RAD:STAN AG') 
+            self.query('*OPC?')
         elif mode == 'vsa':
-            self.res.write(':INST VSA')
+            self.write(':INST VSA')
         else:
             self.logger.warning('{:s}.setMode():  Unknown mode: {:s}'.format(self.drivername, mode))
 
     def getTrace(self):
         print('Changed3!')
-        self.res.write(':FORM REAL,32')
-        self.res.write(':FORM:BORD SWAP')
-        yy = self.res.query_binary_values('TRAC? TRACE1', datatype='f', is_big_endian=False)
+        self.write(':FORM REAL,32')
+        self.write(':FORM:BORD SWAP')
+        yy = self.query_binary_values('TRAC? TRACE1', datatype='f', is_big_endian=False)
         
-        numPoints = int(self.res.query('SWE:POIN?'))
-        sweepTime = float(self.res.query('SWE:TIME?'))
+        numPoints = int(self.query('SWE:POIN?'))
+        sweepTime = float(self.query('SWE:TIME?'))
         xx = np.linspace(0, sweepTime, num=numPoints)
         
         return np.stack((xx,yy))
@@ -249,25 +249,25 @@ class VsaRohde(Vsa):
         
     def setMode(self, mode='spectrum'):
         if   mode == 'spectrum':
-            self.res.write( 'INST SAN')
-            #self.res.write( 'DISP:WIND1:SIZE LARGE')
+            self.write( 'INST SAN')
+            #self.write( 'DISP:WIND1:SIZE LARGE')
         elif mode == 'wimax':
-            self.res.write( '*RST')
-            self.res.write( 'INST:SEL WIMAX')
+            self.write( '*RST')
+            self.write( 'INST:SEL WIMAX')
             #pause(10)
-            self.res.query('*OPC?')
+            self.query('*OPC?')
         elif mode == 'wlan':
-            self.res.write( '*RST')
-            self.res.write( 'INST:SEL WLAN')
-            self.res.query('*OPC?')
+            self.write( '*RST')
+            self.write( 'INST:SEL WLAN')
+            self.query('*OPC?')
         elif mode == 'vsa':
-            self.res.write(':INST VSA')
+            self.write(':INST VSA')
         else:
             self.logger.warning('{:s}.setMode():  Unknown mode: {:s}'.format(self.drivername, mode))
 
                 
     def getMode(self):
-        mode = self.res.query('INST:SEL?')
+        mode = self.query('INST:SEL?')
         
         modes = {
             'WIM': 'wimax',
@@ -277,13 +277,13 @@ class VsaRohde(Vsa):
         return modes.get(mode, 'Unknown')
 
     def getTrace(self):
-        self.res.write(':FORM REAL,32')
-        # self.res.write(':FORM:BORD SWAP')     # Command doesn't exist
-        yy = self.res.query_binary_values('TRAC? TRACE1', 
+        self.write(':FORM REAL,32')
+        # self.write(':FORM:BORD SWAP')     # Command doesn't exist
+        yy = self.query_binary_values('TRAC? TRACE1', 
                                               datatype='f', is_big_endian=False)
         
-        numPoints = int(self.res.query('SWE:POIN?'))
-        sweepTime = float(self.res.query('SWE:TIME?'))
+        numPoints = int(self.query('SWE:POIN?'))
+        sweepTime = float(self.query('SWE:TIME?'))
         xx = np.linspace(0, sweepTime, num=numPoints)
         
         return np.stack((xx,yy))

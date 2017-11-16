@@ -12,8 +12,8 @@ class Multimeter(Instrument):
         self.drivername = 'Multimeter'
         
     def measCurrentDC(self):
-        #self.res.write('INST:SEL OUT1')
-        result = self.res.query('MEAS:CURR:DC?')
+        #self.write('INST:SEL OUT1')
+        result = self.query('MEAS:CURR:DC?')
         try:
             value = float(result)
         except ValueError as e:
@@ -21,10 +21,10 @@ class Multimeter(Instrument):
         return value
         
     def measVoltageDC(self):
-        #self.res.write('CONF:VOLT:DC AUTO')
-        #self.res.write('INIT')
-        #result = self.res.query('FETC?')
-        result = self.res.query('MEAS:VOLT:DC?')
+        #self.write('CONF:VOLT:DC AUTO')
+        #self.write('INIT')
+        #result = self.query('FETC?')
+        result = self.query('MEAS:VOLT:DC?')
         try:
             value = float(result)
         except ValueError as e:

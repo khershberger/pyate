@@ -41,9 +41,9 @@ class VnaAgilentENA(NetworkAnalyzer):
                 self.traces['indices'].append( (k1,k2) )
                 
         # Apply these measurements to VNA
-        self.res.write(':CALC:PAR:COUN {:d}'.format(numTraces))
+        self.write(':CALC:PAR:COUN {:d}'.format(numTraces))
         for index, measurement in enumerate(self.traces['definitions']):
-            self.res.write(':CALC:PAR{:d}:DEF {:s}'.format(index+1, measurement))
+            self.write(':CALC:PAR{:d}:DEF {:s}'.format(index+1, measurement))
 
     def getSParameters(self):
         sdata = {}
@@ -54,8 +54,8 @@ class VnaAgilentENA(NetworkAnalyzer):
                                 dtype='complex')
         
         for index, measurement in enumerate(self.traces['definitions']):
-            self.res.write(':CALC:PAR{:d}:SEL'.format(index+1))
-            #defreadback = self.res.query(':CALC:PAR{:d}:DEF?'.format(index+1))
+            self.write(':CALC:PAR{:d}:SEL'.format(index+1))
+            #defreadback = self.query(':CALC:PAR{:d}:DEF?'.format(index+1))
             #self.logging.debug('{:s}  =  {:s}'.format(measurement, defreadback))
             indices = self.traces['indices'][index]
             sdata['s'][:,indices[0],indices[1]] = self.getTraceData()
@@ -64,31 +64,31 @@ class VnaAgilentENA(NetworkAnalyzer):
         
     def setBlockMode(self, datatype, is_big_endian=True):
         if (datatype=='ascii'):
-            self.res.write(':FORM:DATA ASC')
+            self.write(':FORM:DATA ASC')
         else:
             if (datatype=='float'):
-                self.res.write(':FORM:DATA REAL32')
+                self.write(':FORM:DATA REAL32')
             elif (datatype=='double'):
-                self.res.write(':FORM:DATA REAL')
+                self.write(':FORM:DATA REAL')
                 
             if (is_big_endian):
-                self.res.write(':FORM:BORD NORM')
+                self.write(':FORM:BORD NORM')
             else:
-                self.res.write(':FORM:BORD SWAP')
+                self.write(':FORM:BORD SWAP')
         
     def getFrequencyList(self):
-#        self.res.write(':FORM:BORD NORMAL')      # Big Endian format
-#        self.res.write(':FORM:DATA REAL32')      # Single precision
+#        self.write(':FORM:BORD NORMAL')      # Big Endian format
+#        self.write(':FORM:DATA REAL32')      # Single precision
         self.setBlockMode('float', is_big_endian=True)
         
         # Ask for independant axis values
-        result = self.res.query_binary_values(':SENS:FREQ:DATA?', datatype='f', is_big_endian=True)
+        result = self.query_binary_values(':SENS:FREQ:DATA?', datatype='f', is_big_endian=True)
         return result
 
     def triggerSingle(self):
-        self.res.write(':TRIG:SOUR BUS')
-        self.res.write(':TRIG:SING')
-        self.res.query('*OPC?')
+        self.write(':TRIG:SOUR BUS')
+        self.write(':TRIG:SING')
+        self.query('*OPC?')
         
     def getTraceData(self):
         """
@@ -96,10 +96,10 @@ class VnaAgilentENA(NetworkAnalyzer):
         Measurement must already be complete.
         """
 
-        # self.res.write(':CALC:PAR1:SEL')   # Select Trace 1 on active channel
+        # self.write(':CALC:PAR1:SEL')   # Select Trace 1 on active channel
 
         self.setBlockMode('float', is_big_endian=True)       
-        tracedata = self.res.query_binary_values(':CALC:DATA:SDAT?', datatype='f', is_big_endian=True)
+        tracedata = self.query_binary_values(':CALC:DATA:SDAT?', datatype='f', is_big_endian=True)
         
         if ((len(tracedata) % 2) != 0):
             self.logger.error('S-Parameter trace read results malformed')

@@ -13,23 +13,23 @@ class Vsg(Instrument):
         self.drivername = 'Vsg'
         
     def preset(self):
-        self.res.write(':SYSTem:PREset')
-        self.res.query('*OPC?')
+        self.write(':SYSTem:PREset')
+        self.query('*OPC?')
         
     def getFrequency(self):
-        return float(self.res.query('SOUR:FREQ?'))
+        return float(self.query('SOUR:FREQ?'))
 
     def getAmplitude(self):
-        return self.res.query('SOUR:POW:LEV:IMM:AMPL?')
+        return self.query('SOUR:POW:LEV:IMM:AMPL?')
             
     def setAmplitude(self, level):
-        self.res.query('SOUR:POW:LEV:IMM:AMPL {:g}DBM;*OPC?'.format(level))
+        self.query('*OPC;SOUR:POW:LEV:IMM:AMPL {:g}DBM;*OPC?'.format(level))
         
     def setOutputState(self, enable):
         if enable:
-            self.res.write('OUTP 1')
+            self.write('OUTP 1')
         else:
-            self.res.write('OUTP 0')
+            self.write('OUTP 0')
             
 @Instrument.registerModels(['E8267D'])
 class VsgAgilent(Vsg):
@@ -38,7 +38,7 @@ class VsgAgilent(Vsg):
         self.drivername = 'VsgAgilent'
 
     def setFrequency(self, freq):
-        self.res.write('SOUR:FREQ:FIX {:g}GHz'.format(freq/1e9))
+        self.write('SOUR:FREQ:FIX {:g}GHz'.format(freq/1e9))
         
         
     def sendWaveform(self, iq):
@@ -56,18 +56,18 @@ class VsgAgilent(Vsg):
         
         name = 'matlab'
             
-        self.res.write(':SOUR:RAD:ARB:STAT OFF\n')           # Turn of ARB
-        self.res.write_binary_values(':MMEM:DATA "WFM1:{:s}",'.format(name), 
+        self.write(':SOUR:RAD:ARB:STAT OFF\n')           # Turn of ARB
+        self.write_binary_values(':MMEM:DATA "WFM1:{:s}",'.format(name), 
                                      iqflat, datatype='H', is_big_endian=True)
-        self.res.query('*OPC?')
-        #self.res.write(':SOUR:RAD:ARB:MDES:ALCH M4')         # ALC Hold marker assignment
-        #self.res.write(':SOUR:RAD:ARB:MDES:PULS M3');        # RF blanking marker assignment
+        self.query('*OPC?')
+        #self.write(':SOUR:RAD:ARB:MDES:ALCH M4')         # ALC Hold marker assignment
+        #self.write(':SOUR:RAD:ARB:MDES:PULS M3');        # RF blanking marker assignment
 
     def setModulationState(self, enable):
         if enable:
-            self.res.write(':OUTPut:MODulation:STATe 1')
+            self.write(':OUTPut:MODulation:STATe 1')
         else:
-            self.res.write(':OUTPut:MODulation:STATe 0')
+            self.write(':OUTPut:MODulation:STATe 0')
 
 #@Instrument.registerModels(['DG1032Z'])
 class VsgRohde(Vsg):
@@ -76,10 +76,10 @@ class VsgRohde(Vsg):
         self.drivername = 'VsgRohde'
 
     def setFrequency(self, freq):
-        self.res.write('SOUR:FREQ {:g}GHz'.format(freq/1e9))
+        self.write('SOUR:FREQ {:g}GHz'.format(freq/1e9))
         
     def setModulationState(self, enable):
         if enable:
-            self.res.write('SOUR:MOD:STAT 1')
+            self.write('SOUR:MOD:STAT 1')
         else:
-            self.res.write('SOUR:MOD:STAT 0')        
+            self.write('SOUR:MOD:STAT 0')        

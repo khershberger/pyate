@@ -13,33 +13,33 @@ class PowerSupply(Instrument):
         
     def setOutput(self, state):
         if state is True:   
-            result = self.res.write(':OUTP ON')
+            result = self.write(':OUTP ON')
         else:
-            result = self.res.write(':OUTP OFF')
+            result = self.write(':OUTP OFF')
         return result
     
     def setVoltage(self, channel, value):
-        self.res.write(':SOUR{:d}:VOLT {:g}'.format(channel, value))
-        result = float(self.res.query(':SOUR{:d}:VOLT?'.format(channel)))
+        self.write(':SOUR{:d}:VOLT {:g}'.format(channel, value))
+        result = float(self.query(':SOUR{:d}:VOLT?'.format(channel)))
         
         self.logger.info('Readback = {:g}'.format(result))
         return result
 
     def setCurrent(self, channel, value):
-        self.res.write(':SOUR{:d}:CURR {:g}'.format(channel, value))
-        result = float(self.res.query(':SOUR{:d}:CURR?'.format(channel)))
+        self.write(':SOUR{:d}:CURR {:g}'.format(channel, value))
+        result = float(self.query(':SOUR{:d}:CURR?'.format(channel)))
         
         self.logger.info('Readback = {:g}'.format(result))
         return result
         
     def measVoltage(self, channel):
-        result = float(self.res.query(':MEAS:VOLT? CH{:d}'.format(channel)))
+        result = float(self.query(':MEAS:VOLT? CH{:d}'.format(channel)))
         
         self.logger.info('Measured Voltage = {:g}'.format(result))
         return result
 
     def measCurrent(self, channel):
-        result = float(self.res.query(':MEAS:CURR? CH{:d}'.format(channel)))
+        result = float(self.query(':MEAS:CURR? CH{:d}'.format(channel)))
         
         self.logger.info('Measured Voltage = {:g}'.format(result))
         return result
