@@ -37,9 +37,12 @@ Original code from https://github.com/baldwint/wanglib
 
 #from wanglib.util import Serial
 from serial import Serial
-from socket import socket, AF_INET, SOCK_STREAM, IPPROTO_TCP
+from socket import socket, timeout, AF_INET, SOCK_STREAM, IPPROTO_TCP
 from time import sleep
 import logging
+
+class PrologixTimeout(Exception):
+    pass
 
 class _prologix_base(object):
     """
@@ -231,6 +234,8 @@ class PrologixEthernet(_prologix_base):
                 self.iolog.info('*** Connection reset.  Re-establishing ***')
                 self.openSocket()
                 self.readall(attempts=attempts+1)
+            except timeout as e:
+                raise PrologixTimeout('Timeout during readall()')
         else:
             raise ConnectionError('Cannot re-establish connection')
                 
