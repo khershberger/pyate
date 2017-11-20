@@ -18,23 +18,32 @@ from PyQt5.QtWidgets import (
     QAction,
     qApp,
     QApplication,
-    QGroupBox,
+    QDockWidget,
+    QFileDialog,
     QHBoxLayout,
     QPlainTextEdit,
-    QRadioButton,
     QStyle,
-    QTabWidget,
     QTextEdit,
+    QTreeView,
+    QTreeWidgetItem,
     QVBoxLayout,
     QWidget)
-from PyQt5.QtGui import (QIcon, QFont)
-from PyQt5.QtCore import QCoreApplication
+from PyQt5.QtGui import (
+    QFont,
+    QIcon,
+    QStandardItem,
+    QStandardItemModel)
+from PyQt5.QtCore import (
+    Qt,
+    QCoreApplication)
 # from PyQt5 import QtCore
 
 from qtconsole.qt import QtGui
 from qtconsole.rich_jupyter_widget import RichJupyterWidget
 from qtconsole.inprocess import QtInProcessKernelManager
 from IPython.lib import guisupport
+
+import tables
 
 class loggingAdapter(logging.Handler):
     def __init__(self, parent, widget):
@@ -93,6 +102,51 @@ class ConsoleWidget(RichJupyterWidget):
         """
         self._execute(command, False)
 
+class h5TreeWidget(QTreeView):
+    def __init__(self):
+        super().__init__()
+
+        self.mymodel = QStandardItemModel()
+        self.mymodel.setHorizontalHeaderLabels([self.tr("Object")])
+        self.setModel(self.mymodel)
+        
+        self.h5filename = None
+        
+    def seth5filename(self, fname):
+        logging.debug('h5 filename set')
+        self.h5filename = fname
+        self.updateTree()
+        
+        
+    def updateTree(self):
+        logging.debug('Updating tree')
+        h5file = tables.open_file(self.h5filename, mode='r')
+        
+        self.walkTree(self.mymodel, h5file.root)
+        
+        h5file.close()
+        
+        #self.setModel(self.mymodel)
+        
+    def walkTree(self, parent, h5item):
+        try:
+            if h5item._c_classid == 'GROUP':
+                for g in h5item._f_list_nodes():
+                    name = g._c_classid + ': ' + g._v_name
+                    logging.debug(name)
+                    item = QStandardItem(name)
+                    parent.appendRow(item)
+    
+                    self.walkTree(item, g)
+            else:
+                pass
+                
+        except:
+            logging.debug('Leaf!')
+            
+            
+        
+
 class PateMainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -100,80 +154,101 @@ class PateMainWindow(QMainWindow):
         self.initUI()
 
     def initUI(self):
-        self.setWindowIcon(self.style().standardIcon(QStyle.SP_ComputerIcon))
-        
-        # Create main widget
-        mainWidget = QWidget(self)
+        # Construct the menubar
+        bar = self.menuBar()
+        file = bar.addMenu('&File')
+        openAction = QAction('&Open', self)
+        #openAction.triggered.connect(self.processTrigger) 
+        file.addAction(openAction)
+        file.triggered[QAction].connect(self.processTrigger)
 
-        ### Construct log tab
+        ### Tree Dock
 
-        optionButtonsGroup = QGroupBox()
-        optionButtonsLayout = QVBoxLayout()
-        optionRadio1 = QRadioButton('INFO')
-        optionRadio2 = QRadioButton('DEBUG')
-        optionButtonsLayout.addWidget(optionRadio1)
-        optionButtonsLayout.addWidget(optionRadio2)
-        optionButtonsGroup.setLayout(optionButtonsLayout)
+        # Create Tree Widget & Populate with data        
+        self.tree1View = h5TreeWidget()
+        #self.model = QStandardItemModel()
+        #self.model.setHorizontalHeaderLabels([self.tr("Object")])
+        ##self.addItems(self.model, data)
+        #self.tree1View.setModel(self.model)
+
+        # Create dock for tree1
+        self.dockTree1 = QDockWidget('Tree', self)
+        self.dockTree1.setWidget(self.tree1View)
+        self.dockTree1.setFloating(False)
+        self.addDockWidget(Qt.LeftDockWidgetArea, self.dockTree1)
+
+        ### Log Dock
         
-        textEditLog1 = QPlainTextEdit()
-        textEditLog1.setReadOnly(True)
-        logAdapter = loggingAdapter(self, textEditLog1)
+        # Create Log Widget
+        self.logTextEdit = QPlainTextEdit()
+        self.logTextEdit.setReadOnly(True)
+        logAdapter = loggingAdapter(self, self.logTextEdit)
         logging.getLogger().setLevel(logging.DEBUG)
         logging.getLogger().addHandler(logAdapter)
         logging.debug('Log adapter hopefully attached')
         
-        loggingWidget = QWidget()
-        loggingWIdgetLayout = QHBoxLayout()
-        loggingWIdgetLayout.addWidget(optionButtonsGroup)
-        loggingWIdgetLayout.addWidget(textEditLog1)
-        loggingWidget.setLayout(loggingWIdgetLayout)
+        # Create dock for log window
+        self.dockLog = QDockWidget('Log', self)
+        self.dockLog.setWidget(self.logTextEdit)
+        self.dockLog.setFloating(False)
+        self.addDockWidget(Qt.BottomDockWidgetArea, self.dockLog)
+
+        ### Jupyter Dock
         
-        textEditLog2 = QPlainTextEdit()
-        textEditLog2.setReadOnly(True)
-
-        logTabWidget = QTabWidget()
-        logTabWidget.addTab(loggingWidget, 'Log')
-        logTabWidget.addTab(textEditLog2, 'VISA')
-
-        jupyterDisplayWidget = QWidget()
-        jbox = QHBoxLayout()
-        jbox.addWidget(QPlainTextEdit())
-        jbox.addWidget(QPlainTextEdit())
-        jupyterDisplayWidget.setLayout(jbox)
-
+        # Create textEdit linked to Jupyter widget
+        logging.info('Creating textEdit for Jupyter')
+        textEditJupyter = QPlainTextEdit()
+        textEditJupyter.insertPlainText('Type the following to access content:\nmyWidget.toPlainText()')
+        
+        # Create the docs
+        self.dockJupyterEdit = QDockWidget('textEdit for Jupyter', self)
+        self.dockJupyterEdit.setWidget(textEditJupyter)
+        self.dockJupyterEdit.setFloating(False)
+        self.addDockWidget(Qt.RightDockWidgetArea, self.dockJupyterEdit)
+        
+        # Create Jupyter widget
         logging.info('Creating JupyterWidget')
+        jupyterWidgetConsole = ConsoleWidget(myWidget=textEditJupyter)
 
-        jupyterWidgetConsole = ConsoleWidget(myWidget=jupyterDisplayWidget)
+        # Create the docs
+        self.dockJupyter = QDockWidget('Jupyter console', self)
+        self.dockJupyter.setWidget(jupyterWidgetConsole)
+        self.dockJupyter.setFloating(False)
+        self.addDockWidget(Qt.BottomDockWidgetArea, self.dockJupyter)
 
+        # Now we construct the central Widget & it's layout
+        mainWidget = QWidget(self)
+                
+        # Create & assign layout for mainWidget
+        layout = QHBoxLayout()
+        mainWidget.setLayout(layout)
 
-        vbox = QVBoxLayout()
-        vbox.addStretch(1)
-        vbox.addWidget(jupyterDisplayWidget)
-        vbox.addWidget(jupyterWidgetConsole)
-        vbox.addWidget(logTabWidget)
-        mainWidget.setLayout(vbox)
+        # Tabbify overlapping docks
+        self.tabifyDockWidget(self.dockLog, self.dockJupyter)
 
+        # Set mainWidget to be central widget
         self.setCentralWidget(mainWidget)
-
-        exitAction = QAction(self.style().standardIcon(QStyle.SP_DialogCloseButton),
-                             '&Exit', self)
-        exitAction.setShortcut('Ctrl+Q')
-        exitAction.setStatusTip('Exit application')
-        exitAction.triggered.connect(qApp.quit)
-        #exitAction.triggered.connect(self.bleh)
-
-        self.statusBar()
-
-        # menubar = self.menuBar()
-        self.fileMenu = self.menuBar().addMenu('&File')
-        self.fileMenu.addAction(exitAction)
-
-        self.toolbar = self.addToolBar('Exit')
-        self.toolbar.addAction(exitAction)
-
         self.setGeometry(300, 300, 800, 450)
         self.setWindowTitle('PyATE')
         self.show()
+
+    def processTrigger(self, q):
+        try:
+            message = q.text()+" is triggered"
+            logging.debug(message)
+            print(message)
+            
+            if q.text() == '&Open':
+                fname = QFileDialog.getOpenFileName(self, 'Open file', 
+                                                    '','HDF5 Files (*.h5)')
+                logging.info(fname)
+                self.tree1View.seth5filename(fname[0])
+                
+            
+        except:
+            logging.error('processTrigger(): Exception!')
+            logging.error(sys.exc_info()[0])
+        
 
 def bleh(self):
     logging.debug('Button pressed')
@@ -181,7 +256,12 @@ def bleh(self):
 def main():
     app = QApplication(sys.argv)
     guiMain = PateMainWindow()
-    sys.exit(app.exec_())
+    try:
+        retval = app.exec_()
+    except:     # This doesn't seem to actually work.
+        print('Uncaught Exception')
+        sys.exit(1)
+    sys.exit(retval)
 
 if __name__ == '__main__':
     main()
