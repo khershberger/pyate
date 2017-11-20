@@ -15,7 +15,7 @@ Created on Thu Mar 30 14:09:15 2017
 # from . import oscilloscope
 
 import logging
-import visawrapper
+import pyate.visawrapper as visawrapper
 
 class InstrumentManager(object):
     

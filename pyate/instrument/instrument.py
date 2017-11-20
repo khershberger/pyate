@@ -6,7 +6,7 @@ Created on Tue Oct 10 13:51:46 2017
 """
 
 import logging
-import visawrapper
+import pyate.visawrapper as visawrapper
 import pyvisa.errors
 from . import manager 
 

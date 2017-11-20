@@ -15,18 +15,18 @@ class Oscilloscope(Instrument):
         self.drivername = 'Oscilloscope'
         
     def getTrace(self, channel):
-        .write(':WAV:SOUR {:s}', channel)
-        xorigin    = float(.query(':WAV:XOR?'))
-        xreference = float(.query(':WAV:XREF?'))
-        xincrement = float(.query(':WAV:XINC?'))
-        yorigin    = float(.query(':WAV:YOR?'))
-        yreference = float(.query(':WAV:YREF?'))
-        yincrement = float(.query(':WAV:YINC?'))
+        self.write(':WAV:SOUR {:s}', channel)
+        xorigin    = float(self.query(':WAV:XOR?'))
+        xreference = float(self.query(':WAV:XREF?'))
+        xincrement = float(self.query(':WAV:XINC?'))
+        yorigin    = float(self.query(':WAV:YOR?'))
+        yreference = float(self.query(':WAV:YREF?'))
+        yincrement = float(self.query(':WAV:YINC?'))
         
-        .write(':WAV:MODE NORM')
-        .write(':WAV:FORM BYTE')
+        self.write(':WAV:MODE NORM')
+        self.write(':WAV:FORM BYTE')
         
-        raw = .query_binary_values(':WAV:DATA? ', datatype='B', is_big_endian=False)
+        raw = self.query_binary_values(':WAV:DATA? ', datatype='B', is_big_endian=False)
         
         # Scale to voltage:
         # V = (BYTE - YORigin - YREFerence) * YINCrement   From Prog. Manual
