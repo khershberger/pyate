@@ -6,6 +6,7 @@ Created on 2017-11-13
 
 from .instrument import Instrument
 
+@Instrument.registerModels(['8845A', '34401A'])
 class Multimeter(Instrument):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -31,7 +32,7 @@ class Multimeter(Instrument):
             value = float('nan')
         return value
     
-@Instrument.registerModels(['8845A'])
+
 class MultimeterFluke(Multimeter):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
