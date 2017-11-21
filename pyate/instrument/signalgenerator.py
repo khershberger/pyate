@@ -31,7 +31,7 @@ class Vsg(Instrument):
         else:
             self.write('OUTP 0')
             
-@Instrument.registerModels(['E8267D'])
+@Instrument.registerModels(['E8267D', 'N5182B'])
 class VsgAgilent(Vsg):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
