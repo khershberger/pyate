@@ -4,7 +4,7 @@ Manages ResourceManager and Resource instances
 
 import logging
 import pyvisa
-import visawrapper.prologix
+from . import prologix
 
 class InitializationError(Exception):
     pass
@@ -21,7 +21,7 @@ class ResourceManager():
     """ 
     
     resourcemanager = None
-    prologix = {}
+    _prologixManager = {}
     resources = {}
     
     @classmethod
@@ -40,11 +40,11 @@ class ResourceManager():
         logger = logging.getLogger(__name__) 
         if ipAddress not in cls.prologix:
             logger.debug('Creating new PrologixInterface instance')
-            cls.prologix[ipAddress] = visawrapper.prologix.PrologixEthernet(ipAddress)
+            cls._prologixManager[ipAddress] = prologix.PrologixEthernet(ipAddress)
         else:
             logger.debug('Returning existing PrologixInterface instance')
             
-        return cls.prologix[ipAddress]
+        return cls._prologixManager[ipAddress]
     
     @classmethod
     def open_resource(cls, resource_name, **kwargs):
