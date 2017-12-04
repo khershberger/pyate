@@ -92,7 +92,6 @@ class Instrument:
                 raise InstrumentNothingToRead('Instrument.read() Nothing to read???')
             else:
                 raise e
-
         
     def query(self, command, retries=3):
         for n in range(retries):
@@ -106,9 +105,18 @@ class Instrument:
                     self.logger.warning('NI Timeout occured during Instrument.query() operation')
                 else:
                     raise e
-                        
-        
         raise InstrumentNothingToRead('Instrument.read() Nothing to read???')
+        
+
+    def write_binary_values(self, *args, **kwargs):
+        return self.res.write_binary_values(*args, **kwargs)
+        
+    def read_binary_values(self, *args, **kwargs):
+        return self.res.read_binary_values(*args, **kwargs)
+
+    def query_binary_values(self, *args, **kwargs):
+        return self.res.query_binary_values(*args, **kwargs)
+
         
     def testConnection(self, attemptReset=False, triesLeft=1):
         try:
