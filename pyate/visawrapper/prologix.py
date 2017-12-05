@@ -202,12 +202,23 @@ class PrologixEthernet(_prologix_base):
         self.bus = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)
         self.bus.settimeout(5)
         self.bus.connect((self._ip, 1234))
+        
+    def testSocket(self):
+        self.logger.info('Testing socket state')
+        if self.bus.fileno() == -1:
+            self.logger.info('Socket fileno = -1.')
+            self.openSocket()
+        
+    def close(self):
+        self.logger.debug('Closing socket connection')
+        self.bus.close()
 
     def write(self, command, lag=0.0, attempts=0):
         formattedCommand = '{:s}\n'.format(command).encode()
         
         if attempts < 2:
             try:
+                self.testSocket()
                 self.iolog.info(formattedCommand)
                 self.bus.send(formattedCommand)
                 sleep(lag)
@@ -226,6 +237,7 @@ class PrologixEthernet(_prologix_base):
     def readall(self, attempts=0):
         if attempts < 2:
             try:
+                self.testSocket()
                 self.write('++read eoi')
                 resp = self.bus.recv(128) # 128 should be enough, right?
                 self.iolog.info(resp)

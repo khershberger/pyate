@@ -38,7 +38,7 @@ class ResourceManager():
     @classmethod
     def getPrologixInterface(cls, ipAddress):
         logger = logging.getLogger(__name__) 
-        if ipAddress not in cls.prologix:
+        if ipAddress not in cls._prologixManager:
             logger.debug('Creating new PrologixInterface instance')
             cls._prologixManager[ipAddress] = prologix.PrologixEthernet(ipAddress)
         else:
@@ -90,8 +90,14 @@ class ResourceManager():
 
     @classmethod
     def closeAll(cls):
-        for res in cls.resources:
-            cls.resources[res].close()
+        logger = logging.getLogger(__name__) 
+        for keyRes in cls.resources:
+            logger.info('Closing: {:s}'.format(keyRes))
+            try:
+                cls.resources[keyRes].close()
+            except pyvisa.VisaIOError:
+                logger.warning('VisaIOError occured while trying to close {:s}'.format(keyRes))
+                    
 
 class ResourcePrologix():
     """
@@ -131,6 +137,7 @@ class ResourcePrologix():
         pass
     
     def close(self):
+        self.interface.close()
         pass
         
     def read_termination(self, char):
