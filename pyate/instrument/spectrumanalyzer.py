@@ -126,6 +126,16 @@ class Vsa(Instrument):
         
     def sweep_time(self, sweeptime):
         self.write('SENS:SWE:TIME {:g}'.format(float(sweeptime)))
+        
+    def setMarkerX(self, xvalue, marker=1):
+        self.write('CALC:MARK{:d}:X {:g}'.format(marker, xvalue))
+        
+    def getMarker(self, marker=1):
+        xvalue = self.query('CALC:MARK{:d}:X?'.format(marker))
+        yvalue = self.query('CALC:MARK{:d}:Y?'.format(marker))
+        xvalue = float(xvalue)
+        yvalue = float(yvalue)
+        return (xvalue, yvalue)
 
 #@Instrument.registerModels(['UNK'])
 class VsaAgilent(Vsa):
