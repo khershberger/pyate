@@ -38,6 +38,11 @@ class WaveformGeneratorRigol(WaveformGenerator):
           Fullscale positive = +8191
         """
         
+        # Attempt to clear VOLATILE meomory
+        #self.write('DATA{:d}:POIN VOLATILE,9'.format(channel))
+        
+
+        
         # Offset waveform
         # Rigol instrument expects value to be between 0 and 16383
         # Zero output is 8192
@@ -59,6 +64,11 @@ class WaveformGeneratorRigol(WaveformGenerator):
     def setupBurst(self, channel):
         self.write(':SOUR{:d}:BURS:MODE TRIG'.format(channel))
         self.write(':SOUR{:d}:BURS:NCYC 1'.format(channel))
+        
+        #self.write(':SOUR{:d}:BURS:MODE GAT'.format(channel))
+        
+        self.write(':SOUR{:d}:BURS:IDLE BOTTOM'.format(channel))
+        
         self.write(':SOUR{:d}:BURS:TRIG:SOUR EXT'.format(channel))
         self.write(':SOUR{:d}:BURS:TRIG:SLOP POS'.format(channel))
         self.write(':SOUR{:d}:BURS:STAT ON'.format(channel))
