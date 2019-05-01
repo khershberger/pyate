@@ -27,8 +27,11 @@ class WaveformGeneratorRigol(WaveformGenerator):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.drivername = 'WaveformGeneratorRigol'
-
         self._scpi_prefix = ':APPL{:d}'
+        self.delay = 0.1
+        
+        self._mapSlope     = {'pos':'POS',
+                              'neg':'NEG'}
         
     def sendWaveform(self, data, samplerate, amplitude, offset=0, channel=1):
         """
@@ -59,31 +62,95 @@ class WaveformGeneratorRigol(WaveformGenerator):
         self.write_binary_values(':SOUR{:d}:DATA:DAC VOLATILE,'.format(channel), data, 
                                      datatype='h', is_big_endian=False)
         self.query('*OPC?')
-        time.sleep(0.1)
+        time.sleep(self.delay)
         
-    def setupBurst(self, channel):
-        self.write(':SOUR{:d}:BURS:MODE TRIG'.format(channel))
-        self.write(':SOUR{:d}:BURS:NCYC 1'.format(channel))
+    def setupBurst(self, channel, **kwargs):
+        if 'mode' in kwargs:
+            argValue = kwargs['mode']
+            _map = {'trig':'TRIG', 
+                    'gate':'GATE'}
+            self.checkParameter('mode', argValue, str, _map)
+            self.write(':SOUR{:d}:BURS:MODE {:s}'.format(channel,_map[argValue]))
         
-        #self.write(':SOUR{:d}:BURS:MODE GAT'.format(channel))
+        if 'cycles' in kwargs:
+            argValue = kwargs['cycles']
+            self.checkParameter('cycles', argValue, int, range(1,9999999))
+            self.write(':SOUR{:d}:BURS:NCYC {:d}'.format(channel, argValue))
+
+        if 'idle' in kwargs:
+            argValue = kwargs['idle']
+            _map = {'first':'FPT', 
+                    'top':'TOP',
+                    'center':'CENTER',
+                    'bottom':'BOTTOM'}
+            self.checkParameter('idle', argValue, str, _map)
+            self.write(':SOUR{:d}:BURS:IDLE {:s}'.format(channel, _map[argValue]))
         
-        self.write(':SOUR{:d}:BURS:IDLE BOTTOM'.format(channel))
-        
-        self.write(':SOUR{:d}:BURS:TRIG:SOUR EXT'.format(channel))
-        self.write(':SOUR{:d}:BURS:TRIG:SLOP POS'.format(channel))
-        self.write(':SOUR{:d}:BURS:STAT ON'.format(channel))
+        if 'source' in kwargs:
+            argValue = kwargs['source']
+            _map = {'ext':'EXT',
+                    'int':'INT' }
+            self.checkParameter('source', argValue, str, _map)
+            self.write(':SOUR{:d}:BURS:TRIG:SOUR {:s}'.format(channel,_map[argValue]))
+
+        if 'slope' in kwargs:
+            argValue = kwargs['slope']
+            _map = {'pos':'POS',
+                    'neg':'NEG' }
+            self.checkParameter('slope', argValue, str, _map)
+            self.write(':SOUR{:d}:BURS:TRIG:SLOP {:s}'.format(channel,_map[argValue]))
+
+        if 'state' in kwargs:
+            argValue = kwargs['state']
+            self.checkParameter('state', argValue, bool, None)
+            argValue= 'ON' if argValue else 'OFF'
+            self.write(':SOUR{:d}:BURS:STAT {:s}'.format(channel, argValue))
+            
+        if 'delay' in kwargs:
+            argValue = kwargs['delay']
+            self.checkParameter('delay', argValue, float, None)
+            self.write(':SOUR{:d}:BURS:TDELay {:g}'.format(channel, argValue))
+            
         self.query('*OPC?')
-        time.sleep(0.1)
+        time.sleep(self.delay)
+
+    def getMode(self, channel):
+        """ Queries instrument for current mode and returns relevant settings"""
+        propWaveform = self.query('SOUR{:d}:APPL?'.format(channel))
         
-    def setupPulse(self, channel, mode, period, width, vlow, vhigh):
+        # For whatever reason it puts double quotes around it
+        propWaveform = propWaveform.replace('"', '')
+        
+        propValues = propWaveform.split(sep=',')
+        
+        d = {}
+        d['waveform'] = propValues[0]
+        d['frequency'] = float(propValues[1])
+        d['amplitude'] = float(propValues[2])
+        d['offset'] = float(propValues[3])
+        d['phase'] = float(propValues[4])
+        d['period'] = 1/d['frequency']
+        d['vhi'] = d['offset'] + d['amplitude']/2
+        d['vlo'] = d['offset'] - d['amplitude']/2
+        if (d['waveform'] == 'PULSE'):
+            d['pulsewidth'] = float(self.query('SOUR{:d}:PULS:WIDT?'.format(channel)))
+        d['dutycycle'] = d['pulsewidth'] / d['period']
+        return d
+        
+    def setupPulse(self, channel, mode=None, period=None, width=None, vlow=None, vhigh=None):
         #stateStart = self.getOutputState(channel)
         #self.setOutputState(channel, False)
         self.write(':SOUR{:d}:APPL:PULS'.format(channel))
         #self.write(':SOUR{:d}:PULS:HOLD WIDT'.format(channel))
-        self.write(':SOUR{:d}:FUNC:PULS:PER {:g}'.format(channel, period))
-        self.write(':SOUR{:d}:FUNC:PULS:WIDT {:g}'.format(channel, width))
-        self.write(':SOUR{:d}:VOLT:LEV:HIGH {:g}'.format(channel, vhigh))
-        self.write(':SOUR{:d}:VOLT:LEV:LOW {:g}'.format(channel, vlow))
+        if period is not None:
+            self.write(':SOUR{:d}:FUNC:PULS:PER {:g}'.format(channel, period))
+        if width is not None:
+            self.write(':SOUR{:d}:FUNC:PULS:WIDT {:g}'.format(channel, width))
+        if vhigh is not None:
+            self.write(':SOUR{:d}:VOLT:LEV:HIGH {:g}'.format(channel, vhigh))
+        if vlow is not None:
+            self.write(':SOUR{:d}:VOLT:LEV:LOW {:g}'.format(channel, vlow))
+            
         self.query('*OPC?')
         # The following is required for the above settigns to take effect
         # The front panel of the instrument will show the new seetings,
@@ -91,6 +158,14 @@ class WaveformGeneratorRigol(WaveformGenerator):
         time.sleep(0.1)  
         #self.setOutputState(channel, stateStart)
 
+    def setChannel(self, channel, sync=None, syncpol=None):
+        self.checkParameter('channel', channel, int, (1,2))
+        if syncpol is not None:
+            self.checkParameter('syncpol', syncpol, str, self._mapSlope)
+            self.write(':OUTP{:d}:SYNC:POL {:s}'.format(channel,  self._mapSlope[syncpol]))
+        if sync is not None:
+            self.checkParameter('sync', sync, bool, None)
+            self.write(':OUTP{:d}:SYNC:STAT {:d}'.format(channel, int(sync)))
         
 @Instrument.registerModels(['81150A'])
 class WaveformGenerator81150(WaveformGenerator):
