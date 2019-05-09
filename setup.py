@@ -15,5 +15,6 @@ setup(name = 'PyATE',
           'pyqt5',
           'pyvisa',
           'pyserial'
+          'scipy'
           ]
       )
