@@ -33,14 +33,18 @@ class InstrumentManager(object):
     @classmethod
     def getAvailableInstruments(cls):
         return cls._models
+
+    @classmethod
+    def getResourceManager(cls, backend='pyvisa'):
+        return visawrapper.ResourceManager.getResourceManager(backend)
                 
     @classmethod
-    def createInstrument(cls, addr, instrumenttype='generic'):
+    def createInstrument(cls, addr, backend, instrumenttype='generic'):
         logger = logging.getLogger(__name__)
         
         # First get instrument resource
         #res = pyvisa.ResourceManager().open_resource(addr)
-        res = visawrapper.ResourceManager.open_resource(addr)
+        res = visawrapper.ResourceManager.open_resource(addr, backend)
         identity = cls.parseIdnString(res.query('*IDN?'))
         res.close()
     
@@ -64,12 +68,26 @@ class InstrumentManager(object):
             return None
         
     @classmethod
+    def getIden(cls, addr):
+        res = visawrapper.ResourceManager.open_resource(addr)
+        idn = res.query('*IDN?')
+        res.close()        
+        return idn
+        
+    @classmethod
     def parseIdnString(cls, idn):
         parsed = idn.split(sep=',')
-        return {'vendor':   parsed[0].strip(),
-                'model' :   parsed[1].strip(),
-                'serial':   parsed[2].strip(),
-                'frimware': parsed[3].strip() }     
+        if len(parsed) != 4:
+            return {'vendor':   'Unknown',
+                    'model':    'Unknown',
+                    'serial':   'Unknown',
+                    'firmware': 'Unknown',
+                    'ident':    idn}
+        else:
+            return {'vendor':   parsed[0].strip(),
+                    'model' :   parsed[1].strip(),
+                    'serial':   parsed[2].strip(),
+                    'frimware': parsed[3].strip() }     
 
 class InstrumentDriverException(Exception):
     def __init__(self,*args,**kwargs):
