@@ -5,6 +5,7 @@ Created on May 9, 2019
 '''
 
 from datetime import datetime
+from matplotlib.pyplot import plot
 import numpy as np
 from scipy.stats import linregress
 import pandas as pd
@@ -15,12 +16,13 @@ class DataLogger(object):
     classdocs
     '''
 
-    def __init__(self, logFile=None):
+    def __init__(self, logFile=None, timestamp=True):
         '''
         Constructor
         '''
         
         self._logfile = logFile
+        self._enableTimestamp = timestamp
         self._recordStartTime = datetime.now()
         self._recordStopTime = None
         self._data = {}
@@ -40,6 +42,9 @@ class DataLogger(object):
     
     def __setitem__(self, key, val):
         self._recordCurrent[key] = val
+        
+    def last(self,key):
+        return self._data[key][-1]
 
     def getData(self, key, s=None, includecurrent=False):
         if key not in self._data:
@@ -67,8 +72,9 @@ class DataLogger(object):
         return result[0]
         
     def nextRecord(self):
-        self._recordCurrent['tStart'] = str(self._recordStartTime)
-        self._recordCurrent['tEnd'] = str(datetime.now())
+        if self._enableTimestamp:
+            self._recordCurrent['tStart'] = str(self._recordStartTime)
+            self._recordCurrent['tEnd'] = str(datetime.now())
         self._recordCurrent['index' ] = self._recordNum
         self._recordCurrent['group'] = self._groupNum
         
@@ -106,8 +112,17 @@ class DataLogger(object):
         columns = self._columnOrder + list(set(self._data.keys()) - set(self._columnOrder))
         return pd.DataFrame(self._data, columns=columns).set_index('index')
     
-    def writeData(self, fname):
-        self.toFrame().to_csv(fname)
+    def writeData(self, fname, name='data', fformat='csv'):
+        if fformat == 'csv':
+            self.toFrame().to_csv(fname)
+        elif fformat == 'hdf':
+            self.toFrame().to_hdf(fname, name)
+        
+    def plot(self, x=None, y=None, **kwargs):
+        if x is None:
+            return plot(self._data[y], **kwargs)
+        else:
+            return plot(self._data[x], self._data[y], **kwargs)
         
 class ParameterSweep(object):
     '''
@@ -141,14 +156,41 @@ class ParameterSweep(object):
     def get(self, key):
         return self.__getitem__(key)
     
-    def getAll(self):
-        return dict(zip(self._parameterOrder, self.getCurrentRow()))
-    
     def getLast(self, key):
         if self._indexLast is None:
             return None
         else:
-            return self._parameterList[self._indexLast][self._parameterOrder.index(key)]
+            self.getLastTuple()[self._parameterOrder.index(key)]
+        
+    def getLastTuple(self):
+        if self._indexLast is None:
+            raise ValueError('Last not available due to being on first row')
+        else:
+            return self._parameterList[self._indexLast]
+
+    def getCurrentDict(self):
+        return dict(zip(self._parameterOrder, self.getCurrentTuple()))
+
+    def getCurrentTuple(self):
+        self.checkValid()
+        return self._parameterList[self._index]
+    
+    def getIndex(self):
+        return self._index
+    
+    def getChanges(self):
+        if self._indexLast is None:
+            result = self.getCurrentDict()
+        else:
+            cur = self.getCurrentTuple()
+            last = self.getLastTuple()
+            
+            result = {}
+            for i in range(len(cur)):
+                if cur[i] != last[i]:
+                    result[self._parameterOrder[i]] = cur[i]
+        return result
+        
     
     def setParameterRange(self, key, val):
         # Create a copy if we can
@@ -209,13 +251,6 @@ class ParameterSweep(object):
         i1 = self._index
         print('Advanced from {:d} to {:d}'.format(i0, i1))
         
-    def getCurrentRow(self):
-        self.checkValid()
-        return self._parameterList[self._index]
-    
-    def getIndex(self):
-        return self._index
-    
     def end(self):
         return self._index >= self._length
             
