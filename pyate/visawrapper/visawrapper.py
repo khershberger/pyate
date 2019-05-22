@@ -20,54 +20,57 @@ class ResourceManager():
     
     """ 
     
-    resourcemanager = None
-    _prologixManager = {}
+    resourcemanagers = {}
     resources = {}
     
     @classmethod
-    def getResourceManager(cls):
+    def getResourceManager(cls, rmtype):
         logger = logging.getLogger(__name__) 
-        if cls.resourcemanager is None:
-            logger.debug('Creating new pyvisa.ResourceManager instance')
-            cls.resourcemanager = pyvisa.ResourceManager()
+        
+        if rmtype not in cls.resourcemanagers:
+            if rmtype == 'pyvisa':
+                logger.debug('Creating new pyvisa.ResourceManager instance')
+                cls.resourcemanagers[rmtype] = pyvisa.ResourceManager()
+            elif rmtype == 'pyvisa-py':
+                logger.debug('Creating new pyvisa-py.ResourceManager instance')
+                cls.resourcemanagers[rmtype] = pyvisa.ResourceManager('@py')
+            elif rmtype == 'prologix':
+                logger.debug('Creating new prologixManager instance')
+                cls.resourcemanagers[rmtype] = prologix.ResourceManager()
+            else:
+                raise ValueError('Unknown ResourceManager type: %s', rmtype)
         else:
-            logger.debug('Returning existing pyvisa.ResourceManager instance')
+            logger.debug('Returning existing ResourceManager instance')
             
-        return cls.resourcemanager
-
-    @classmethod
-    def getPrologixInterface(cls, ipAddress):
-        logger = logging.getLogger(__name__) 
-        if ipAddress not in cls._prologixManager:
-            logger.debug('Creating new PrologixInterface instance')
-            cls._prologixManager[ipAddress] = prologix.PrologixEthernet(ipAddress)
-        else:
-            logger.debug('Returning existing PrologixInterface instance')
-            
-        return cls._prologixManager[ipAddress]
+        return cls.resourcemanagers[rmtype]
     
     @classmethod
-    def open_resource(cls, resource_name, **kwargs):
+    def open_resource(cls, resource_name, backend, **kwargs):
         logger = logging.getLogger(__name__) 
         # First see if this resource_name is already created
         if resource_name in cls.resources:
             logger.info('Resource already exists: {:s}'.format(resource_name))
             resource = cls.resources[resource_name]
             
-            resource.close()
-            resource.open()
+            # We're fixing this hopefully
+            #resource.close()
+            #resource.open()
         else:
             logger.info('Creating new resource: {:s}'.format(resource_name))
             resource_prefix = resource_name.split(sep='::')[0]
-            if resource_prefix == 'PROLOGIX':
+            if backend == '@prologix':
                 # Create prologix resource
-                resource = ResourcePrologix(resource_name)
+                rm = cls.getResourceManager('prologix')
+            elif backend == '@py':
+                rm = cls.getResourceManager('pyvisa-py')
             else:
                 # Create pyvisa rsource
-                rm = cls.getResourceManager()
-                resource = rm.open_resource(resource_name, **kwargs)
-                
+                rm = cls.getResourceManager('pyvisa')
+
+            resource = rm.open_resource(resource_name, **kwargs)
             cls.addResource(resource_name, resource)
+
+        resource.open()
         
         return resource
     
@@ -98,49 +101,3 @@ class ResourceManager():
             except pyvisa.VisaIOError:
                 logger.warning('VisaIOError occured while trying to close {:s}'.format(keyRes))
                     
-
-class ResourcePrologix():
-    """
-        'PROLOGIX::172.29.92.133::1234::13'
-    """
-
-    def __init__(self, resource_name):
-        self.logger = logging.getLogger(__name__)
-        self._resource_name = resource_name
-        
-        resource_params = resource_name.split(sep='::')
-        
-        self._ip   = resource_params[1]
-        self._port = int(resource_params[2])
-        self._addr = int(resource_params[3])
-
-        if self._port != 1234:
-            raise AttributeError('Prologix interface only supports port 1234')
-        
-        self.interface = ResourceManager.getPrologixInterface(self._ip)
-
-    def read(self):
-        self.interface.addr = self._addr
-        return self.interface.readall()
-        
-    def write(self, command, delay=0.1):
-        self.interface.addr = self._addr
-        return self.interface.write(command, lag=delay)
-    
-    def query(self, command, delay=0.1):
-        self.interface.addr = self._addr
-        self.interface.write(command, lag=delay)
-        #return self.interface.readall()
-        return self.read()
-
-    def open(self):
-        pass
-    
-    def close(self):
-        self.interface.close()
-        pass
-        
-    def read_termination(self, char):
-        self.logger.warning('read_termination(char) not yet implemented')
-        
-        
