@@ -16,31 +16,53 @@ class PowerSupplyDP832(PowerSupply):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.drivername = 'PowerSupplyDP832'
+        
+    def setOutputState(self, channel, state):
+        if type(state) is not bool:
+            raise ValueError('State must be boolean')
+        if channel not in [1,2,3]:
+            raise ValueError('channel must be integer of value 1-3')
+            
+        # Get proper string representatiosn of arguments
+        statestr = 'ON' if state else 'OFF'
+        chanstr = {1:'CH1', 2:'CH2', 3:'CH3'}[channel]
+
+        result = self.write(':OUTP {:s},{:s}'.format(chanstr, statestr))
+        return result
+
+    def setOutput(self, channel, state):
+        return self.setOutputState(channel, state)
+
+    def getVoltage(self, channel):
+        return float(self.query(':SOUR{:d}:VOLT?'.format(channel)))
 
     def setVoltage(self, channel, value):
         self.write(':SOUR{:d}:VOLT {:g}'.format(channel, value))
-        result = float(self.query(':SOUR{:d}:VOLT?'.format(channel)))
+        result = self.getVoltage(channel)
         
-        self.logger.info('Readback = {:g}'.format(result))
+        self.logger.debug('Readback = {:g}'.format(result))
         return result
+
+    def getCurrent(self, channel):
+        return float(self.query(':SOUR{:d}:CURR?'.format(channel)))
 
     def setCurrent(self, channel, value):
         self.write(':SOUR{:d}:CURR {:g}'.format(channel, value))
-        result = float(self.query(':SOUR{:d}:CURR?'.format(channel)))
+        result = self.getCurrent(channel)
         
-        self.logger.info('Readback = {:g}'.format(result))
+        self.logger.debug('Readback = {:g}'.format(result))
         return result
         
     def measVoltage(self, channel):
         result = float(self.query(':MEAS:VOLT? CH{:d}'.format(channel)))
         
-        self.logger.info('Measured Voltage = {:g}'.format(result))
+        self.logger.debug('Measured Voltage = {:g}'.format(result))
         return result
 
     def measCurrent(self, channel):
         result = float(self.query(':MEAS:CURR? CH{:d}'.format(channel)))
         
-        self.logger.info('Measured Voltage = {:g}'.format(result))
+        self.logger.debug('Measured Current = {:g}'.format(result))
         return result
 
 @Instrument.registerModels(['E3646A'])
@@ -65,7 +87,7 @@ class PowerSupplyKeysight(PowerSupply):
         self.write('VOLT {:g}'.format(value))
         result = float(self.query(':VOLT?'))
         
-        self.logger.info('Readback = {:g}'.format(result))
+        self.logger.debug('Readback = {:g}'.format(result))
         return result
         
     def setCurrent(self, channel, value):
@@ -73,7 +95,7 @@ class PowerSupplyKeysight(PowerSupply):
         self.write('CURR {:g}'.format(value))
         result = float(self.query('CURR?'))
         
-        self.logger.info('Readback = {:g}'.format(result))
+        self.logger.debug('Readback = {:g}'.format(result))
         return result
         
     def setVoltageProtection(self, channel, value):
@@ -89,14 +111,14 @@ class PowerSupplyKeysight(PowerSupply):
         self.selectChannel(channel)
         result = float(self.query(':MEAS:VOLT?'))
         
-        self.logger.info('Measured Voltage = {:g}'.format(result))
+        self.logger.debug('Measured Voltage = {:g}'.format(result))
         return result
 
     def measCurrent(self, channel):
         self.selectChannel(channel)
         result = float(self.query(':MEAS:CURR?'))
         
-        self.logger.info('Measured Voltage = {:g}'.format(result))
+        self.logger.debug('Measured Voltage = {:g}'.format(result))
         return result
         
     def getStatus(self):
