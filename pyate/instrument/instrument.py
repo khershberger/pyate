@@ -6,9 +6,38 @@ Created on Tue Oct 10 13:51:46 2017
 """
 
 import logging
+import time
 import pyate.visawrapper as visawrapper
 import pyvisa.errors
 from . import manager 
+
+def pyvisaExceptionHandler(fcn):
+    """ This is a decorator to handle the excessive number of exceptions
+    that pyvisa raises for problems it really should hanldle on it's own """
+    def wrapper(self, *args, **kwargs):
+        retries = kwargs.get('retries', 3)
+        for n in range(retries):
+            try:
+                return fcn(self, *args, **kwargs)
+            except pyvisa.VisaIOError as e:
+                if e.error_code == pyvisa.errors.VI_ERROR_TMO:
+                    self.logger.warning('NI Timeout occured during Instrument.write() operation')
+                elif e.error_code == pyvisa.errors.VI_ERROR_CONN_LOST:
+                    self.res.open()
+                else:
+                    raise e
+            except pyvisa.errors.InvalidSession:
+                self.logger.warning('InvalidSession error occured attempting to reopen')
+                self.res.open()
+            except ConnectionResetError as e:
+                self.logger.warning('ConnectionResetError during Instrument.write().  Closing & Reopening')
+                self.res.reset()
+            except visawrapper.prologix.PrologixTimeout as e:
+                self.logger.warning('Prologix Timeout occured during Instrument.write() operation')
+        raise InstrumentIOError('Instrument.write() Max retries exceeded')
+    
+    return wrapper
+
 
 class InstrumentIOError(Exception):
     pass
@@ -41,6 +70,9 @@ class Instrument:
         self.res.open()
         self.res.read_termination = '\n'
         self.refreshIDN()
+        
+    def __del__(self):
+        self.res.close()
 
     @property
     def res(self):
@@ -63,50 +95,43 @@ class Instrument:
         self.res.open()
         
     def close(self):
-        self.res.close()
-        
-    def write(self, command, retries=3):
-        for n in range(retries):
-            try:
-                self.res.write(command)
-                return
-            except visawrapper.prologix.PrologixTimeout as e:
-                self.logger.warning('Prologix Timeout occured during Instrument.write() operation')
-            except pyvisa.VisaIOError as e:
-                if e.error_code == pyvisa.errors.VI_ERROR_TMO:
-                    self.logger.warning('NI Timeout occured during Instrument.write() operation')
-                else:
-                    raise e
-        
-        raise InstrumentIOError('Instrument.write() Max retries exceeded')
-        
-    def read(self):
         try:
-            return self.res.read()
-        except visawrapper.prologix.PrologixTimeout as e:
-            self.logger.warning('Prologix Timeout occured during Instrument.write() operation')
-            raise InstrumentNothingToRead('Instrument.read() Nothing to read???')
-        except pyvisa.VisaIOError as e:
-            if e.error_code == pyvisa.errors.VI_ERROR_TMO:
-                self.logger.warning('NI Timeout occured during Instrument.read() operation')
-                raise InstrumentNothingToRead('Instrument.read() Nothing to read???')
+            self.res.close()
+        except pyvisa.errors.VisaIOError as e:
+            if e.error_code == pyvisa.errors.VI_ERROR_INV_OBJECT:
+                # We'll consider this a sucess
+                self.logger.warning('Error when closing device: VI_ERROR_INV_OBJECT')
+                pass
+            if e.error_code == pyvisa.errors.VI_ERROR_CLOSING_FAILED:
+                # We'll consider this a sucess
+                self.logger.warning('Error when closing device: VI_ERROR_CLOSING_FAILED')
+                pass
             else:
                 raise e
         
-    def query(self, command, retries=3):
-        for n in range(retries):
-            self.write(command, retries)
-            try:
-                return self.res.read()
-            except visawrapper.prologix.PrologixTimeout as e:
-                self.logger.warning('Prologix Timeout occured during Instrument.read() operation')
-            except pyvisa.VisaIOError as e:
-                if e.error_code == pyvisa.errors.VI_ERROR_TMO:
-                    self.logger.warning('NI Timeout occured during Instrument.query() operation')
-                else:
-                    raise e
-        raise InstrumentNothingToRead('Instrument.read() Nothing to read???')
+    def reset(self):
+        self.logger.debug('Resetting resource')
+        try:
+            self.res.close()
+        except pyvisa.errors.VisaIOError as e:
+            self.logger.error('VisaIOError: {:s}'.format(str(e.error_code)))
+        self.res.open()
+        self.res.clear()
+    
+    @pyvisaExceptionHandler
+    def write(self, command, delay=0., retries=3):
+        res = self.res.write(command)
+        time.sleep(delay)
+        return res
+
+    @pyvisaExceptionHandler
+    def read(self, retries=3):
+        return self.res.read()
         
+    def query(self, command, delay=0, retries=3):
+        self.write(command, retries=retries)
+        time.sleep(delay)
+        return self.read(retries=retries)
 
     def write_binary_values(self, *args, **kwargs):
         return self.res.write_binary_values(*args, **kwargs)
@@ -130,3 +155,17 @@ class Instrument:
                                            triesLeft=triesLeft-1)
             else:
                 return False
+    
+    def checkParameter(self, parName, parValue, dtype, drange):
+        if dtype is not None:
+            if not isinstance(parValue, dtype):
+                raise TypeError('{:s} must be of type {:s}'.format(parName, str(dtype)))
+        
+        if drange is not None:
+            if isinstance(drange, list):
+                if parValue not in drange:
+                    raise ValueError('{:s} must be in range {:s}'.format(parName, str(drange)))
+            if isinstance(drange, tuple):
+                if ((parValue < drange[0]) or (parValue > drange[1])):
+                    raise ValueError('{:s} must be between {:g} and {:g}'.format(parName, drange[0], drange[1]))
+        
