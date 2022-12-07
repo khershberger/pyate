@@ -5,6 +5,8 @@ Instrument drivers package __init__ file
 from .manager import InstrumentManager
 from .instrument import Instrument
 
+from . import error
+
 from . import instrument
 from . import multimeter
 from . import networkanalyzer

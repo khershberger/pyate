@@ -9,7 +9,7 @@ import os
 
 print(sys.path)
 print(os.getcwd())
-from ..datamanagement import DataLogger
+from pyate import DataLogger
 #from pyate.datamanagement import DataLogger
 
 class TestDataLogger(unittest.TestCase):

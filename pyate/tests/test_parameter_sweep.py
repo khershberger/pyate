@@ -4,10 +4,9 @@ Created on May 10, 2019
 @author: kyleh
 '''
 import unittest
-from ..datamanagement import ParameterSweep
+from pyate import ParameterSweep
 
 import numpy as np
-from astropy.units import pl
 
 class TestParameterSweep(unittest.TestCase):
     def constructSweep(self):

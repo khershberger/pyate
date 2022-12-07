@@ -4,7 +4,7 @@ Created on Jul 12, 2017
 @author: kyleh
 '''
 
-from .instrument import Instrument
+from pyate.instrument import Instrument
 import time
 
 class WaveformGenerator(Instrument):

@@ -5,17 +5,8 @@ Created on Thu Mar 30 14:09:15 2017
 @author: kyleh
 """
 
-#from .instrument import Instrument
-# from . import powersupply
-# from . import spectrumanalyzer
-# from . import signalgenerator
-# from . import networkanalyzer
-# from . import waveformgenerator
-# from . import powermeter
-# from . import oscilloscope
-
 import logging
-import pyate.visawrapper as visawrapper
+from pyate import visawrapper
 
 class InstrumentManager(object):
     

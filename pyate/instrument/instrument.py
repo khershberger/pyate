@@ -7,9 +7,10 @@ Created on Tue Oct 10 13:51:46 2017
 
 import logging
 import time
-import pyate.visawrapper as visawrapper
 import pyvisa.errors
-from . import manager 
+
+from pyate import visawrapper
+from pyate.instrument import manager
 
 def pyvisaExceptionHandler(fcn):
     """ This is a decorator to handle the excessive number of exceptions
@@ -37,13 +38,6 @@ def pyvisaExceptionHandler(fcn):
         raise InstrumentIOError('Instrument.write() Max retries exceeded')
     
     return wrapper
-
-
-class InstrumentIOError(Exception):
-    pass
-
-class InstrumentNothingToRead(Exception):
-    pass
 
 class Instrument:
     @classmethod

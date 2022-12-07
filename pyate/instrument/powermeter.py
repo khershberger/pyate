@@ -23,8 +23,8 @@ while(not (stat & 1)):
 
 import time
 
-from .instrument import Instrument
-from .instrument import InstrumentNothingToRead
+from pyate.instrument import Instrument
+from pyate.instrument.error import InstrumentNothingToRead
 
 @Instrument.registerModels(['E4417A'])
 class PowerMeter(Instrument):

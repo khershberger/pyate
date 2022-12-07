@@ -4,7 +4,7 @@ Created on Jul 4, 2017
 @author: kyleh
 '''
 
-from .instrument import Instrument
+from pyate.instrument import Instrument
 
 class PowerSupply(Instrument):
     def __init__(self, *args, **kwargs):

@@ -4,7 +4,7 @@ Created on 2017-11-13
 @author: kyleh
 '''
 
-from .instrument import Instrument
+from pyate.instrument import Instrument
 
 @Instrument.registerModels(['8845A', '34401A'])
 class Multimeter(Instrument):
