@@ -17,50 +17,53 @@ class DataLogger(object):
     classdocs
     """
 
-    def __init__(self, logFile=None, timestamp=True):
+    def __init__(self, logfile=None, timestamp=True):
         """
         Constructor
         """
 
-        self._logfile = logFile
         self._enableTimestamp = timestamp
         self._recordStartTime = datetime.now()
         self._recordStopTime = None
+        self._logfile = logfile
+        self._enable_timestamp = timestamp
+        self._record_start_time = datetime.now()
+        self._record_stop_time = None
         self._data = {}
-        self._recordCurrent = {}
-        self._recordNum = 0
-        self._numRecords = 0
+        self._record_current = {}
+        self._record_num = 0
+        self._num_records = 0
 
-        self._groupNum = 0
-        self._groupStart = 0
+        self._group_num = 0
+        self._group_start = 0
 
-        self._columnOrder = []
+        self._column_order = []
 
-        self._valueMissing = float("nan")
+        self._value_missing = float("nan")
 
     def __getitem__(self, key):
-        return self._recordCurrent[key]
+        return self._record_current[key]
 
     def __setitem__(self, key, val):
-        self._recordCurrent[key] = val
+        self._record_current[key] = val
 
     def last(self, key):
         return self._data[key][-1]
 
-    def getData(self, key, s=None, includecurrent=False):
+    def get_data(self, key, s=None, includecurrent=False):
         if key not in self._data:
             v = []
         else:
             v = self._data[key][s]
 
         if includecurrent:
-            v += [self._recordCurrent.get(key, None)]
+            v += [self._record_current.get(key, None)]
 
         return v
 
     def trend(self, key, pts, includecurrent=False):
         # Get all the data in the current group
-        v = self.getData(key, slice(self._groupStart, None), includecurrent=includecurrent)
+        v = self.get_data(key, slice(self._group_start, None), includecurrent=includecurrent)
 
         if len(v) < pts:
             pts = len(v)
@@ -72,52 +75,60 @@ class DataLogger(object):
 
         return result[0]
 
-    def nextRecord(self):
-        if self._enableTimestamp:
-            self._recordCurrent["tStart"] = str(self._recordStartTime)
-            self._recordCurrent["tEnd"] = str(datetime.now())
-        self._recordCurrent["index"] = self._recordNum
-        self._recordCurrent["group"] = self._groupNum
+    def next_record(self):
+        if self._enable_timestamp:
+            self._record_current["tStart"] = str(self._record_start_time)
+            self._record_current["tEnd"] = str(datetime.now())
+        self._record_current["index"] = self._record_num
+        self._record_current["group"] = self._group_num
 
-        keysAll = set(list(self._recordCurrent.keys()) + list(self._data.keys()))
+        keysAll = set(list(self._record_current.keys()) + list(self._data.keys()))
 
         for key in keysAll:
             if key not in self._data:
                 # Create missing records
-                self._data[key] = [self._valueMissing] * self._numRecords
-            if key not in self._recordCurrent:
+                self._data[key] = [self._value_missing] * self._num_records
+            if key not in self._record_current:
                 # The current results didn't have a previously assigned value.  Add nan
-                self._data[key].append(self._valueMissing)
+                self._data[key].append(self._value_missing)
             else:
-                self._data[key].append(self._recordCurrent[key])
+                self._data[key].append(self._record_current[key])
+    
+        # if self._autosave:
+        #     self.write_record()
 
-        self._recordCurrent = {}
-        self._recordNum += 1
-        self._numRecords += 1
-        self._recordStartTime = datetime.now()
+        self._record_current = {}
+        self._record_num += 1
+        self._num_records += 1
+        self._record_start_time = datetime.now()
 
-    def nextGroup(self):
+    def next_group(self):
         """ Creates new grouping with current record as first entry in new group """
-        self._groupNum += 1
-        self._groupStart = self._recordNum
+        self._group_num += 1
+        self._group_start = self._record_num
 
-    def setOrder(self, order):
-        self._columnOrder = ["index"] + order
+    def set_order(self, order):
+        self._column_order = ["index"] + order
 
-    def numRecords(self):
-        return self._recordNum
+    def num_records(self):
+        return self._record_num
 
-    def toFrame(self):
+    def to_frame(self):
         # Create full column list by putting the columns specified in
         # columnOrder  first and then any missing ones at the end
-        columns = self._columnOrder + list(set(self._data.keys()) - set(self._columnOrder))
+        columns = self._column_order + list(set(self._data.keys()) - set(self._column_order))
         return pd.DataFrame(self._data, columns=columns).set_index("index")
 
-    def writeData(self, fname, name="data", fformat="csv"):
+    def write_record(self):
+        if not self._logfile_started:
+            pass
+
+
+    def write_data(self, fname, name="data", fformat="csv"):
         if fformat == "csv":
-            self.toFrame().to_csv(fname)
+            self.to_frame().to_csv(fname)
         elif fformat == "hdf":
-            self.toFrame().to_hdf(fname, name)
+            self.to_frame().to_hdf(fname, name)
 
     def plot(self, x=None, y=None, **kwargs):
         if x is None:
@@ -137,63 +148,63 @@ class ParameterSweep(object):
         """
 
         self._parameters = {}
-        self._parameterOrder = []
+        self._parameter_order = []
 
-        self._parameterList = None
-        self._listComputed = False
+        self._parameter_list = None
+        self._list_computed = False
 
         self._index = 0
-        self._indexLast = None
+        self._index_last = None
         self._length = None
 
     def __getitem__(self, key):
-        return self._parameterList[self._index][self._parameterOrder.index(key)]
+        return self._parameter_list[self._index][self._parameter_order.index(key)]
 
     def __setitem__(self, key, val):
         raise Exception("Cannot assign parameter value")
 
     def __repr__(self):
-        return self._parameterList.__repr__()
+        return self._parameter_list.__repr__()
 
     def get(self, key):
         return self.__getitem__(key)
 
-    def getLast(self, key):
-        if self._indexLast is None:
+    def get_last(self, key):
+        if self._index_last is None:
             return None
         else:
-            self.getLastTuple()[self._parameterOrder.index(key)]
+            self.get_last_tuple()[self._parameter_order.index(key)]
 
-    def getLastTuple(self):
-        if self._indexLast is None:
+    def get_last_tuple(self):
+        if self._index_last is None:
             raise ValueError("Last not available due to being on first row")
         else:
-            return self._parameterList[self._indexLast]
+            return self._parameter_list[self._index_last]
 
-    def getCurrentDict(self):
-        return dict(zip(self._parameterOrder, self.getCurrentTuple()))
+    def get_current_dict(self):
+        return dict(zip(self._parameter_order, self.get_current_tuple()))
 
-    def getCurrentTuple(self):
-        self.checkValid()
-        return self._parameterList[self._index]
+    def get_current_tuple(self):
+        self.check_valid()
+        return self._parameter_list[self._index]
 
-    def getIndex(self):
+    def get_index(self):
         return self._index
 
-    def getChanges(self):
-        if self._indexLast is None:
-            result = self.getCurrentDict()
+    def get_changes(self):
+        if self._index_last is None:
+            result = self.get_current_dict()
         else:
-            cur = self.getCurrentTuple()
-            last = self.getLastTuple()
+            cur = self.get_current_tuple()
+            last = self.get_last_tuple()
 
             result = {}
             for i in range(len(cur)):
                 if cur[i] != last[i]:
-                    result[self._parameterOrder[i]] = cur[i]
+                    result[self._parameter_order[i]] = cur[i]
         return result
 
-    def setParameterRange(self, key, val):
+    def set_parameter_range(self, key, val):
         # Create a copy if we can
         try:
             val = val.copy()
@@ -207,45 +218,45 @@ class ParameterSweep(object):
             val = [val]
 
         self._parameters[key] = val
-        self._listComputed = False
+        self._list_computed = False
 
-    def setOrder(self, order):
+    def set_order(self, order):
         # Check for complete list
         if set(order) != set(self._parameters.keys()):
             raise Exception("Ordering list must contain all parameters")
 
-        self._parameterOrder = order
-        self._listComputed = False
+        self._parameter_order = order
+        self._list_computed = False
 
     def compute(self):
         self.reset()
-        self._parameterList = list(product(*[self._parameters[k] for k in self._parameterOrder]))
-        self._length = len(self._parameterList)
-        self._listComputed = True
+        self._parameter_list = list(product(*[self._parameters[k] for k in self._parameter_order]))
+        self._length = len(self._parameter_list)
+        self._list_computed = True
 
     def reset(self):
         self._index = 0
-        self._indexLast = None
+        self._index_last = None
 
-    def checkValid(self):
-        if not self._listComputed:
+    def check_valid(self):
+        if not self._list_computed:
             raise Exception("compute() must be called before usage")
 
-    def getList(self):
-        self.checkValid()
-        return self._parameterList
+    def get_list(self):
+        self.check_valid()
+        return self._parameter_list
 
     def next(self):
-        self.checkValid()
-        self._indexLast = self._index
+        self.check_valid()
+        self._index_last = self._index
         self._index += 1
 
-    def nextGroup(self):
+    def next_group(self):
         # Slow but I'm tried of messing with this for now
-        self._indexLast = self._index
+        self._index_last = self._index
         i0 = self._index
-        v = self._parameterList[self._index][:-1]
-        while (self._index < self._length) and (v == self._parameterList[self._index][:-1]):
+        v = self._parameter_list[self._index][:-1]
+        while (self._index < self._length) and (v == self._parameter_list[self._index][:-1]):
             self.next()
         i1 = self._index
         print("Advanced from {:d} to {:d}".format(i0, i1))

@@ -10,40 +10,40 @@ import numpy as np
 
 
 class TestParameterSweep(unittest.TestCase):
-    def constructSweep(self):
+    def construct_sweep(self):
         pl = ParameterSweep()
-        pl.setParameterRange("PA", range(1, 4))
-        pl.setParameterRange("PB", range(1, 4))
-        pl.setParameterRange("PC", np.arange(1.1, 4.1))
-        pl.setOrder(["PA", "PB", "PC"])
+        pl.set_parameter_range("PA", range(1, 4))
+        pl.set_parameter_range("PB", range(1, 4))
+        pl.set_parameter_range("PC", np.arange(1.1, 4.1))
+        pl.set_order(["PA", "PB", "PC"])
 
         pl.compute()
 
         self.pl = pl
 
-    def testBasic(self):
-        self.constructSweep()
+    def test_basic(self):
+        self.construct_sweep()
         print(self.pl)  # pl.getList())
 
         while not self.pl.end():
-            row = self.pl.getCurrentRow()
+            row = self.pl.get_current_row()
             print(row)
 
             if row == (2, 1, 2.1):
-                print("Calling nextGroup()")
-                self.pl.nextGroup()
+                print("Calling next_group()")
+                self.pl.next_group()
             else:
                 self.pl.next()
 
-    def testSomething(self):
-        self.constructSweep()
+    def test_something(self):
+        self.construct_sweep()
         print(self.pl["PC"])
         print(self.pl.get("PC"))
-        print(self.pl.getLast("PC"))
+        print(self.pl.get_last("PC"))
         self.pl.next()
         print(self.pl["PC"])
         print(self.pl.get("PC"))
-        print(self.pl.getLast("PC"))
+        print(self.pl.get_last("PC"))
 
 
 if __name__ == "__main__":
