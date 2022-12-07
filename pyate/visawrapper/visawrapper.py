@@ -31,9 +31,9 @@ class ResourceManager():
             if rmtype == 'pyvisa':
                 logger.debug('Creating new pyvisa.ResourceManager instance')
                 cls.resourcemanagers[rmtype] = pyvisa.ResourceManager()
-            elif rmtype == 'pyvisa-py':
+            elif rmtype in ['pyvisa-py', 'pyvisa-ivi']:
                 logger.debug('Creating new pyvisa-py.ResourceManager instance')
-                cls.resourcemanagers[rmtype] = pyvisa.ResourceManager('@py')
+                cls.resourcemanagers[rmtype] = pyvisa.ResourceManager('@ivi')
             elif rmtype == 'prologix':
                 logger.debug('Creating new prologixManager instance')
                 cls.resourcemanagers[rmtype] = prologix.ResourceManager()
@@ -45,7 +45,7 @@ class ResourceManager():
         return cls.resourcemanagers[rmtype]
     
     @classmethod
-    def open_resource(cls, resource_name, backend, **kwargs):
+    def open_resource(cls, resource_name, backend="@py", **kwargs):
         logger = logging.getLogger(__name__) 
         # First see if this resource_name is already created
         if resource_name in cls.resources:

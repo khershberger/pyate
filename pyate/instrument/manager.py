@@ -30,7 +30,7 @@ class InstrumentManager(object):
         return visawrapper.ResourceManager.getResourceManager(backend)
                 
     @classmethod
-    def createInstrument(cls, addr, backend, instrumenttype='generic'):
+    def createInstrument(cls, addr, backend='pyvisa', instrumenttype='generic'):
         logger = logging.getLogger(__name__)
         
         # First get instrument resource
