@@ -1,6 +1,7 @@
 import unittest
 from pyate import instrument
 
+
 class TestInstrument(unittest.TestCase):
     def setUp(self):
         print("setUp")

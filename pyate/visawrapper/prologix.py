@@ -35,7 +35,7 @@ Original code from https://github.com/baldwint/wanglib
 
 """
 
-#from wanglib.util import Serial
+# from wanglib.util import Serial
 from serial import Serial
 from socket import socket, AF_INET, SOCK_STREAM, IPPROTO_TCP, TCP_NODELAY
 from time import sleep
@@ -45,48 +45,48 @@ import time
 import select
 
 from pyvisa import constants, attributes, errors
+
 StatusCode = constants.StatusCode
 
 
 class PrologixTimeout(Exception):
     pass
 
+
 class ResourceManager(object):
     _prologixManager = {}
-    
-    
+
     @classmethod
     def getPrologixController(cls, ipAddress):
-        logger = logging.getLogger(__name__) 
+        logger = logging.getLogger(__name__)
         if ipAddress not in cls._prologixManager:
-            logger.debug('Creating new PrologixInterface instance')
+            logger.debug("Creating new PrologixInterface instance")
             cls._prologixManager[ipAddress] = PrologixEthernet(ipAddress)
         else:
-            logger.debug('Returning existing PrologixInterface instance')
-            
+            logger.debug("Returning existing PrologixInterface instance")
+
         return cls._prologixManager[ipAddress]
-     
+
     @classmethod
     def open_resource(cls, resource_name):
         resource = ResourcePrologix(resource_name)
         return resource
-    
+
     @classmethod
     def getResourceParameters(cls, resource_name):
-        params = resource_name.split(sep='::')
+        params = resource_name.split(sep="::")
         if len(params) == 4:
-            raise Exception('Incorrect resource string: %s', resource_name)
-        dResource = {'controller': params[0],
-                     'ipaddress': params[1],
-                     'gpibaddress': params[2]}
-        
+            raise Exception("Incorrect resource string: %s", resource_name)
+        dResource = {"controller": params[0], "ipaddress": params[1], "gpibaddress": params[2]}
+
         # Convert PROLOGIX to lower case
-        if dResource['controller'] == 'PROLOGIX':
-            dResource['controler'] = 'prologix'
-        
+        if dResource["controller"] == "PROLOGIX":
+            dResource["controler"] = "prologix"
+
         return dResource
 
-class ResourcePrologix():
+
+class ResourcePrologix:
     """
         'PROLOGIX::172.29.92.133::1234::13'
     """
@@ -94,39 +94,40 @@ class ResourcePrologix():
     def __init__(self, resource_name):
         self.logger = logging.getLogger(__name__)
         self._resource_name = resource_name
-        
+
         self.timeout = 2.0
-        
+
         resource_params = ResourceManager.getResourceParameters(resource_name)
-        self._ip   = resource_params['ipaddress']
-        self._addr = int(resource_params['gpibaddress'])
+        self._ip = resource_params["ipaddress"]
+        self._addr = int(resource_params["gpibaddress"])
 
         self.interface = ResourceManager.getPrologixController(self._ip)
 
     def read(self):
         return self.interface.read(self._addr, timeout=self.timeout)
-        
+
     def write(self, message):
         return self.interface.write(self._addr, message)
-    
+
     def query(self, message):
         self.interface.write(self._addr, message)
         return self.interface.read(self._addr, timeout=self.timeout)
 
     def open(self):
         self.interface.open()
-    
+
     def close(self):
         self.interface.close()
         pass
-    
+
     def clear(self):
         self.interface.clear(self._addr)
-        
+
     def read_termination(self, char):
-        self.logger.warning('read_termination(char) not yet implemented')
+        self.logger.warning("read_termination(char) not yet implemented")
         raise NotImplementedError
-        
+
+
 class _prologix_base(object):
     """
     Base class for Prologix controllers (ethernet/usb)
@@ -138,9 +139,9 @@ class _prologix_base(object):
 
         """
         self.logger = logging.getLogger(__name__)
-        self.iolog  = logging.getLogger(__name__ + '.io')
+        self.iolog = logging.getLogger(__name__ + ".io")
 
-        self._bufferPending = {}   # Separate buffer for each gpibaddr
+        self._bufferPending = {}  # Separate buffer for each gpibaddr
         self._auto = None
         self._addr = None
         self._addrLast = None
@@ -165,13 +166,17 @@ class _prologix_base(object):
         """
         # query the controller for the current address
         # and save it in the _addr variable (why not)
-        self.write(None, '++addr')
+        self.write(None, "++addr")
         addrReported = int(self.read(None))
         if addrReported != self._addr:
-            self.logger.error('Address mismatch between Prologix device (%s) and manager (%s).  This is likely due to multiple connections to device.', str(addrReported), str(self._a_addr))
+            self.logger.error(
+                "Address mismatch between Prologix device (%s) and manager (%s).  This is likely due to multiple connections to device.",
+                str(addrReported),
+                str(self._a_addr),
+            )
         self._addr = addrReported
         return self._addr
-    
+
     @addr.setter
     def addr(self, new_addr, flush=False):
         """ Handles multiplexing betwween GPIB addresses.
@@ -179,37 +184,36 @@ class _prologix_base(object):
         Ensures remaing data in data bus gets sved to appropriate buffer 
         
         new_addr:  Integer or None  (None is used to signify prologix controller commands) """
-        
+
         # Make sure buffer exists for this address
         if new_addr not in self._bufferPending:
             self._bufferPending[new_addr] = bytearray()
-        
+
         # Only change if new address is different than current
         if new_addr != self._addrLast:
             # We've switched to a new addresss, so need to clear out buffer for last addreess
             self.read_last(flush)
-        
-            self.logger.debug('Setting addr to %s from %s', str(new_addr), str(self._addrLast))
-        
+
+            self.logger.debug("Setting addr to %s from %s", str(new_addr), str(self._addrLast))
+
             # update local record
             # This will trigger storing of all data in bus to buffer
             self._addr = new_addr
-    
+
             # Only need to update hardware if actual GPIB addres
             # 'None' is used to "address" the prolgix controller
             if new_addr is not None:
                 # change to the new address
-                self.write_raw('++addr {:d}'.format(new_addr), delay=0.1)
+                self.write_raw("++addr {:d}".format(new_addr), delay=0.1)
                 # we update the local variable first because the 'write'
                 # command may have a built-in delay. if we intterupt a program
                 # during this period, the local attribute will be wrong
-            
+
             # _addrLast must be updated after ++addr command to avoid 'issues'
             self._addrLast = new_addr
 
         else:
-            self.logger.debug('Setting addr to %s (No Change)', str(new_addr))
-
+            self.logger.debug("Setting addr to %s (No Change)", str(new_addr))
 
     @property
     def auto(self):
@@ -222,17 +226,18 @@ class _prologix_base(object):
         some instruments do poorly with it.
 
         """
-        self.write(None, '++auto')
+        self.write(None, "++auto")
         self._auto = bool(int(self.read(None)))
         return self._auto
+
     @auto.setter
     def auto(self, val):
         self._auto = bool(val)
-        self.write(None, '++auto {:d}'.format(self._auto))
+        self.write(None, "++auto {:d}".format(self._auto))
 
     def version(self):
         """ Check the Prologix firmware version. """
-        self.write(None, '++ver')
+        self.write(None, "++ver")
         return self.read(None)
 
     @property
@@ -248,42 +253,46 @@ class _prologix_base(object):
         .. _`wear on the EEPROM`: http://www.febo.com/pipermail/time-nuts/2009-July/038952.html
 
         """
-        self.write(None, '++savecfg')
+        self.write(None, "++savecfg")
         resp = self.read(None)
-        
-        if resp == 'Unrecognized command':
-            raise Exception("""
+
+        if resp == "Unrecognized command":
+            raise Exception(
+                """
                 Prologix controller does not support ++savecfg
                 update firmware or risk wearing out EEPROM
-                            """)
+                            """
+            )
         return bool(int(resp))
+
     @savecfg.setter
     def savecfg(self, val):
         d = bool(val)
-        self.write(None, '++savecfg {:d}'.format(d))
-    
+        self.write(None, "++savecfg {:d}".format(d))
+
     def assertDefaultConfiguration(self):
         # Disable configuration saving by default
         self.savecfg = False
 
         # Configure as controller
-        self.write(None, '++mode 1')
+        self.write(None, "++mode 1")
 
         # Disable 'Read-after-Write'
         self.auto = True
-        
+
         # Turn on EOI (Network to GPIB)
-        self.write(None, '++eoi 1')
-        
+        self.write(None, "++eoi 1")
+
         # set EOS termination (GPIB writs)
-        self.write(None, '++eos 0')  # Append CR+LF to instrument commands
-        
+        self.write(None, "++eos 0")  # Append CR+LF to instrument commands
+
         # Set EOT
-        self.write(None, '++eot_enable 0')  # No character added to network reads
-        
+        self.write(None, "++eot_enable 0")  # No character added to network reads
+
     def ping(self):
-        return self.query(None, '++ver') 
-    
+        return self.query(None, "++ver")
+
+
 class PrologixEthernet(_prologix_base):
     """
     Interface to a Prologix GPIB-Ethernet controller.
@@ -303,11 +312,11 @@ class PrologixEthernet(_prologix_base):
         super(PrologixEthernet, self).__init__()
 
         self.max_recv_size = 1024
-        self.select_timeout_default = 10e-6 
-        self.timeout = 2.0   # In seconds  (I think this is right?)
+        self.select_timeout_default = 10e-6
+        self.timeout = 2.0  # In seconds  (I think this is right?)
 
         self.ip = ip
-        
+
         # Open a socket to the controller
         self.open()
 
@@ -317,36 +326,37 @@ class PrologixEthernet(_prologix_base):
     @property
     def ip(self):
         return self._ip
+
     @ip.setter
     def ip(self, ipAddress):
         self._ip = ipAddress
 
     def testSocket(self):
-        self.logger.info('Testing socket state')
+        self.logger.info("Testing socket state")
         if self.bus.fileno() == -1:
-            self.logger.info('Socket fileno = -1.')
+            self.logger.info("Socket fileno = -1.")
             self.open()
         else:
-            self.logger.info('Socket looks OK?')
+            self.logger.info("Socket looks OK?")
 
     def open(self):
-        self.logger.debug('Opening socket connection')
-        self.logger.info('Establishing socket connection')
-        self.iolog.info('*** Establishing socket connection ***')
+        self.logger.debug("Opening socket connection")
+        self.logger.info("Establishing socket connection")
+        self.iolog.info("*** Establishing socket connection ***")
         self.bus = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)
-        #self.bus = socket(AF_INET, SOCK_STREAM)  #IPPROTO_TCP
-        #self.bus.setsockopt(IPPROTO_TCP, TCP_NODELAY, 1)
-        
+        # self.bus = socket(AF_INET, SOCK_STREAM)  #IPPROTO_TCP
+        # self.bus.setsockopt(IPPROTO_TCP, TCP_NODELAY, 1)
+
         self.bus.settimeout(5)
         self.bus.connect((self._ip, 1234))
-        
+
     def close(self):
-        self.logger.debug('Closing socket connection')
+        self.logger.debug("Closing socket connection")
         self.bus.close()
 
-    def write_raw(self, message, delay=0.):
-        self.logger.debug('write_raw(%s, delay=%g)', message, delay)
-        messageFormatted  = '{:s}\r\n'.format(message).encode()
+    def write_raw(self, message, delay=0.0):
+        self.logger.debug("write_raw(%s, delay=%g)", message, delay)
+        messageFormatted = "{:s}\r\n".format(message).encode()
 
         for retries in range(3):
             try:
@@ -356,23 +366,22 @@ class PrologixEthernet(_prologix_base):
                 sleep(delay)
                 return
             except ConnectionResetError as e:
-                self.logger.info('Connection reset.  Re-establishing')
-                self.iolog.warning('*** Connection reset.  Re-establishing ***')
+                self.logger.info("Connection reset.  Re-establishing")
+                self.iolog.warning("*** Connection reset.  Re-establishing ***")
                 self.open()
                 self.testSocket()
             except ConnectionAbortedError as e:
-                self.logger.warning('Connection aborted.  Re-establishing')
+                self.logger.warning("Connection aborted.  Re-establishing")
                 self.open()
                 self.testSocket()
         # If we made it here we failed 3 retry attempts
-        raise ConnectionError('Cannot re-establish connection')
+        raise ConnectionError("Cannot re-establish connection")
 
-    def write(self, gpibaddr, message, delay=0.):
+    def write(self, gpibaddr, message, delay=0.0):
         # Change address
         self.addr = gpibaddr
         self.read_last()
         self.write_raw(message, delay=delay)
-
 
     def read_raw(self, count, buffer, term_char_en=True, timeout=None):
         """Reads data from device or interface synchronously.
@@ -391,7 +400,7 @@ class PrologixEthernet(_prologix_base):
         else:
             chunk_length = self.max_recv_size
 
-        term_byte = bytes([self.term_char]) if self.term_char else b''
+        term_byte = bytes([self.term_char]) if self.term_char else b""
         term_char_en = True
 
         read_fun = self.bus.recv
@@ -401,16 +410,13 @@ class PrologixEthernet(_prologix_base):
 
         # minimum is in interval 1 - 100ms based on timeout, 1sec if no timeout
         # defined
-        min_select_timeout = (1 if timeout is None else
-                              max(min(timeout / 100.0, 0.1), 0.001))
+        min_select_timeout = 1 if timeout is None else max(min(timeout / 100.0, 0.1), 0.001)
         # initial 'select_timout' is half of timeout or max 2 secs
         # (max blocking time). min is from 'min_select_timeout'
-        select_timout = (2.0 if timeout is None else
-                         max(min(timeout / 2.0, 2.0), min_select_timeout))
+        select_timout = 2.0 if timeout is None else max(min(timeout / 2.0, 2.0), min_select_timeout)
         # time, when loop shall finish, None means never ending story if no
         # data arrives
-        finish_time = (None if timeout is None else
-                       (time.time() + timeout))
+        finish_time = None if timeout is None else (time.time() + timeout)
 
         while True:
             # check, if we have any data received (from pending buffer or
@@ -418,14 +424,14 @@ class PrologixEthernet(_prologix_base):
             if count is not None:
                 if len(buffer) >= count:
                     return StatusCode.success_max_count_read
-            
+
             if term_char_en and term_byte in buffer:
                 return StatusCode.success_termination_character_read
 
             # use select to wait for read ready, max `select_timout` seconds
             r, w, x = select.select([self.bus], [], [], select_timout)
 
-            read_data = b''
+            read_data = b""
             if self.bus in r:
                 read_data = read_fun(chunk_length)
                 buffer.extend(read_data)
@@ -437,7 +443,7 @@ class PrologixEthernet(_prologix_base):
                     # expected
                     return StatusCode.succes
                 if finish_time and time.time() >= finish_time:
-                    self.logger.warning('read_raw():  Timeout!')
+                    self.logger.warning("read_raw():  Timeout!")
                     return StatusCode.error_timeout
 
                 # `select_timout` decreased to 50% of previous or
@@ -448,76 +454,72 @@ class PrologixEthernet(_prologix_base):
         # Clears everything from bus.  Puts data into buffer if it was provided
         if (self._addrLast is None) or (flush):
             # FLush the socket since we don't have anywhere to put the data
-            self.logger.debug('Discarding read buffer')
+            self.logger.debug("Discarding read buffer")
             buffer = bytearray()
         else:
-            self.logger.debug('Saving read buffer to %s', self._addrLast)
-            buffer = self._bufferPending[self._addrLast]    
+            self.logger.debug("Saving read buffer to %s", self._addrLast)
+            buffer = self._bufferPending[self._addrLast]
 
         # Read all available data.  We don't acare about the ruesult
         # Just need to stash the results in the buffer for the last
         # addressed isntrument.
         # Extremely short timeout set since we only want what was already there.
         status = self.read_raw(None, buffer, term_char_en=False, timeout=0.001)
-        
+
     def read(self, gpibaddr, count=None, timeout=None):
         if count is None:
             count = self.max_recv_size
-            
+
         # Change address
         self.addr = gpibaddr
-            
+
         # Send reqd request if a GPIB address provided
         if not self._auto and gpibaddr is not None:
-            self.write_raw('++read eoi')
+            self.write_raw("++read eoi")
 
         # Get reference to the appropriate buffer
         buffer = self._bufferPending[gpibaddr]
 
         # Try to read data, if fail, send read request and try again
-        status = self.read_raw(count, 
-                               buffer, 
-                               term_char_en=True,
-                               timeout=timeout)
-            
-        if   status == StatusCode.success_termination_character_read:
-            term_byte = bytes([self.term_char]) if self.term_char else b''
+        status = self.read_raw(count, buffer, term_char_en=True, timeout=timeout)
+
+        if status == StatusCode.success_termination_character_read:
+            term_byte = bytes([self.term_char]) if self.term_char else b""
             term_byte_index = buffer.index(term_byte) + 1
         elif status == StatusCode.success_max_count_read:
             term_byte_index = len(buffer)
         elif status == StatusCode.error_timeout:
             raise errors.VisaIOError(errors.VI_ERROR_TMO)
         else:
-            raise errors.VisaIOError('Unknown Error')
-            
+            raise errors.VisaIOError("Unknown Error")
+
         out = buffer[:term_byte_index].decode().rstrip()  # Extract out output
-        buffer[:term_byte_index] = []           # Remove otuput from buffer
-        self.logger.debug('PrologiXEthernet.read():  %s', out)
+        buffer[:term_byte_index] = []  # Remove otuput from buffer
+        self.logger.debug("PrologiXEthernet.read():  %s", out)
         return out
-            
-        
-        
+
     def clear(self, addr):
         # First write anyting in bus to last addressed buffer
         self.read_last()
-        
+
         def clearHelper(addr):
             if isinstance(addr, int):
-                self.write_raw('++addr {:d}'.format(addr))  # Switch to address
-                self.write_raw('++clr')                     # Clear GPIB buffer
-                self._bufferPending[addr].clear()           # Clear local buffer
-                
-        if addr == 'all':
+                self.write_raw("++addr {:d}".format(addr))  # Switch to address
+                self.write_raw("++clr")  # Clear GPIB buffer
+                self._bufferPending[addr].clear()  # Clear local buffer
+
+        if addr == "all":
             # Wipe out everything
-            self.logger.debug('Clearing all buffers')
+            self.logger.debug("Clearing all buffers")
             for key in self._bufferPending:
                 clearHelper(key)
         else:
-            self.logger.debug('Clearing buffer %s', str(addr))
+            self.logger.debug("Clearing buffer %s", str(addr))
             clearHelper(addr)
-            
+
         # Set addr back to where it should be
-        self.write_raw('++addr {:d}'.format(self._addrLast))
+        self.write_raw("++addr {:d}".format(self._addrLast))
+
 
 class PrologixUSB(_prologix_base):
     """
@@ -534,10 +536,10 @@ class PrologixUSB(_prologix_base):
 
     """
 
-    def __init__(self, port='/dev/ttyUSBgpib', log=False):
+    def __init__(self, port="/dev/ttyUSBgpib", log=False):
         # do common startup routines
         super(PrologixUSB, self).__init__()
-        
+
         # create a serial port object
         self.bus = Serial(port, baudrate=115200, rtscts=1, log=log)
         # if this doesn't work, try settin rtscts=0
@@ -549,7 +551,7 @@ class PrologixUSB(_prologix_base):
         self.assertDefaultConfiguration()
 
     def write(self, command, delay=0.1):
-        formattedCommand = '{:s}\r'.format(command)
+        formattedCommand = "{:s}\r".format(command)
         self.iolog.info(formattedCommand)
         self.bus.write(formattedCommand)
         sleep(delay)
@@ -561,13 +563,15 @@ class PrologixUSB(_prologix_base):
 
     def query(self, query, *args, **kwargs):
         """ Write to the bus, then read response. """
-        #TODO: if bus doesn't have a logger
-        self.bus.logger.debug('clearing buffer - expect no result')
+        # TODO: if bus doesn't have a logger
+        self.bus.logger.debug("clearing buffer - expect no result")
         self.readall()  # clear the buffer
         self.write(query, *args, **kwargs)
         return self.readall()
 
+
 controllers = dict()
+
 
 def prologix_ethernet(ip):
     """
@@ -582,7 +586,8 @@ def prologix_ethernet(ip):
         controllers[ip] = PrologixEthernet(ip)
     return controllers[ip]
 
-def prologix_USB(port='/dev/ttyUSBgpib', log=False):
+
+def prologix_USB(port="/dev/ttyUSBgpib", log=False):
     """
     Factory for a Prologix GPIB-USB controller.
 
@@ -599,6 +604,7 @@ def prologix_USB(port='/dev/ttyUSBgpib', log=False):
     if port not in controllers:
         controllers[port] = PrologixUSB(port)
     return controllers[port]
+
 
 class instrument(object):
     """
@@ -626,8 +632,7 @@ class instrument(object):
     delay = 0.1
     """Seconds to pause after each write."""
 
-    def __init__(self, controller, addr,
-                 delay=0.1, auto=True):
+    def __init__(self, controller, addr, delay=0.1, auto=True):
         """
         Constructor method for instrument objects.
 
@@ -682,14 +687,14 @@ class instrument(object):
         # clear stray bytes from the buffer.
         # hopefully, there will be none.
         # if there are, print a warning
-#        clrd = self.controller.bus.inWaiting()
-#        if clrd > 0:
-#            print clrd, 'bytes cleared'
-#        self.read()  # clear the buffer
+        #        clrd = self.controller.bus.inWaiting()
+        #        if clrd > 0:
+        #            print clrd, 'bytes cleared'
+        #        self.read()  # clear the buffer
         self.write(command)
         return self.read()
 
-    def read(self): # behaves like readall
+    def read(self):  # behaves like readall
         """
         Read a response from an instrument.
 
@@ -697,7 +702,7 @@ class instrument(object):
         self._get_priority()
         if not self.auto:
             # explicitly tell instrument to talk.
-            self.controller.write('++read eoi', delay=self.delay)
+            self.controller.write("++read eoi", delay=self.delay)
         return self.controller.readall()
 
     def write(self, command):
@@ -707,4 +712,3 @@ class instrument(object):
         """
         self._get_priority()
         self.controller.write(command, delay=self.delay)
-

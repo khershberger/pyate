@@ -1,6 +1,7 @@
 import unittest
 from pyate import visawrapper
 
+
 class TestVisawrapper(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -17,4 +18,3 @@ class TestVisawrapper(unittest.TestCase):
 
     def test_get_resource_missing(self):
         self.assertRaises(KeyError, self.rm.getResource, "non_existant")
-        

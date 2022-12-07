@@ -16,9 +16,9 @@ cd "../../../workspace/pate"
 import visawrapper
 import instrumentdrivers.core as drvcore
 
-visa_address = 'TCPIP::192.168.26.132::INSTR'
+visa_address = "TCPIP::192.168.26.132::INSTR"
 instr = visawrapper.ResourceManager.open_resource(visa_address)
-result = instr.query('*IDN?')
+result = instr.query("*IDN?")
 print(result)
 instr.close()
 
