@@ -11,47 +11,47 @@ import numpy as np
 class Vsg(Instrument):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.drivername = "Vsg"
+        self.driver_name = "Vsg"
 
     def preset(self):
         self.write(":SYSTem:PREset")
         self.query("*OPC?")
 
-    def getFrequency(self):
+    def get_frequency(self):
         return float(self.query("SOUR:FREQ?"))
 
-    def getAmplitude(self):
+    def get_amplitude(self):
         return float(self.query("SOUR:POW:LEV:IMM:AMPL?"))
 
-    def setAmplitude(self, level):
+    def set_amplitude(self, level):
         self.query("*OPC;SOUR:POW:LEV:IMM:AMPL {:g}DBM;*OPC?".format(level))
 
-    def getOutputState(self):
+    def get_output_state(self):
         return bool(int(self.query("OUTP?")))
 
-    def setOutputState(self, enable):
+    def set_output_state(self, enable):
         if enable:
             self.write("OUTP 1")
         else:
             self.write("OUTP 0")
 
-    def getModulationState(self):
+    def get_modulation_state(self):
         raise NotImplementedError
 
-    def setModulationState(self, enable):
+    def set_modulation_state(self, enable):
         raise NotImplementedError
 
 
-@Instrument.registerModels(["E8267D", "N5182B"])
+@Instrument.register_models(["E8267D", "N5182B"])
 class VsgAgilent(Vsg):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.drivername = "VsgAgilent"
+        self.driver_name = "VsgAgilent"
 
-    def setFrequency(self, freq):
+    def set_requency(self, freq):
         self.write("SOUR:FREQ:FIX {:g}GHz".format(freq / 1e9))
 
-    def sendWaveform(self, iq, markers=None):
+    def send_waveform(self, iq, markers=None):
         # Typical marker assignment
         # 1:  Rear-panel trigger out
         # 2:  ?
@@ -85,30 +85,30 @@ class VsgAgilent(Vsg):
             self.write(":SOUR:RAD:ARB:MDES:PULS M3")
             # RF blanking marker assignment
 
-    def setModulationState(self, enable):
+    def set_modulation_state(self, enable):
         if enable:
             self.write(":OUTPut:MODulation:STATe 1")
         else:
             self.write(":OUTPut:MODulation:STATe 0")
 
-    def setAttenuator(self, level=None, auto=None):
+    def set_attenuation(self, level=None, auto=None):
         if level is not None:
             raise NotImplementedError()
         if auto is not None:
-            self.checkParameter("auto", auto, bool, None)
+            self.check_parameter("auto", auto, bool, None)
             self.write(":SOUR:POW:ATT:AUTO {:d}".format(auto))
 
 
-# @Instrument.registerModels(['DG1032Z'])
+# @Instrument.register_models(['DG1032Z'])
 class VsgRohde(Vsg):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.drivername = "VsgRohde"
+        self.driver_name = "VsgRohde"
 
-    def setFrequency(self, freq):
+    def set_requency(self, freq):
         self.write("SOUR:FREQ {:g}GHz".format(freq / 1e9))
 
-    def setModulationState(self, enable):
+    def set_modulation_state(self, enable):
         if enable:
             self.write("SOUR:MOD:STAT 1")
         else:

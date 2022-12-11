@@ -15,7 +15,7 @@ class InstrumentManager(object):
     _models = dict()
 
     @classmethod
-    def registerInstrument(cls, models, pyclass):
+    def register_instrument(cls, models, pyclass):
         if isinstance(models, str):
             cls._models[models] = pyclass
         elif isinstance(models, list):
@@ -23,27 +23,27 @@ class InstrumentManager(object):
                 cls._models[model] = pyclass
 
     @classmethod
-    def getAvailableInstruments(cls):
+    def get_available_instruments(cls):
         return cls._models
 
     @classmethod
-    def getResourceManager(cls, backend="pyvisa"):
-        return visawrapper.ResourceManager.getResourceManager(backend)
+    def get_resource_manager(cls, backend="pyvisa"):
+        return visawrapper.ResourceManager.get_resource_manager(backend)
 
     @classmethod
-    def createInstrument(cls, addr, backend="pyvisa", instrumenttype="generic"):
+    def create_instrument(cls, addr, backend="pyvisa", instrumenttype="generic"):
         logger = logging.getLogger(__name__)
 
         # First get instrument resource
         # res = pyvisa.ResourceManager().open_resource(addr)
         res = visawrapper.ResourceManager.open_resource(addr, backend)
-        identity = cls.parseIdnString(res.query("*IDN?"))
+        identity = cls.parse_ident_string(res.query("*IDN?"))
         res.close()
 
         model = identity["model"]
 
         logger.debug("Model = " + model)
-        #         availableDrivers = {
+        #         available_drivers = {
         #                 'DP832':   powersupply.PowerSupplyDP832,
         #                 'FSQ-26':  spectrumanalyzer.VsaRohde,
         #                 'E8267D':  signalgenerator.VsgAgilent,
@@ -60,14 +60,14 @@ class InstrumentManager(object):
             return None
 
     @classmethod
-    def getIden(cls, addr):
+    def get_ident(cls, addr):
         res = visawrapper.ResourceManager.open_resource(addr)
         idn = res.query("*IDN?")
         res.close()
         return idn
 
     @classmethod
-    def parseIdnString(cls, idn):
+    def parse_ident_string(cls, idn):
         parsed = idn.split(sep=",")
         if len(parsed) != 4:
             return {"vendor": "Unknown", "model": "Unknown", "serial": "Unknown", "firmware": "Unknown", "ident": idn}

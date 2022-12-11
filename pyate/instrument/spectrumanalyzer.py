@@ -11,9 +11,9 @@ import numpy as np
 class Vsa(Instrument):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.drivername = "Vsa"
+        self.driver_name = "Vsa"
 
-    def checkIfNumeric(self, s):
+    def check_if_numeric(self, s):
         try:
             float(s)
             return True
@@ -63,7 +63,7 @@ class Vsa(Instrument):
     def options(self):
         return self.query(":SYST:OPTions?")
 
-    def setBlockFormat(self, datatype):
+    def set_block_format(self, datatype):
         if datatype == "ascii":
             self.write(":FORM ASC")
         elif datatype == "single":
@@ -71,11 +71,11 @@ class Vsa(Instrument):
         elif datatype == "double":
             self.write(":FORM REAL")
         else:
-            self.logger.warning("{:s}.setBlockFormat(): Unknown mode {:s}".format(self.drivername, datatype))
+            self.logger.warning("{:s}.set_block_format(): Unknown mode {:s}".format(self.driver_name, datatype))
 
     ### Spectrum Analyzer Commands
 
-    def setBandwidth(self, video=None, resolution=None):
+    def set_bandwidth(self, video=None, resolution=None):
         if video is not None:
             if video == "auto":
                 self.write("BAND:VID:AUTO ON")
@@ -88,16 +88,16 @@ class Vsa(Instrument):
             else:
                 self.write("BAND:RES {:g} HZ".format(resolution))
 
-    def getResolutionBandwidth(self):
+    def get_resolution_bandwidth(self):
         return self.query("BAND:RES?")
 
-    def getVideoBandwidth(self):
+    def get_video_bandwidth(self):
         return self.query("BAND:VID?")
 
-    def setFrequency(self, start=None, stop=None, center=None, span=None):
+    def set_frequency(self, start=None, stop=None, center=None, span=None):
         if (start is not None or stop is not None) and (center is not None or span is not None):
             self.logger.warning(
-                "{:s}.setFreq(): Conflicting parameters specified.  Defaulting to center/span".format(self.drivername)
+                "{:s}.setFreq(): Conflicting parameters specified.  Defaulting to center/span".format(self.driver_name)
             )
 
         if start is not None:
@@ -112,30 +112,30 @@ class Vsa(Instrument):
         if span is not None:
             self.write("FREQ:SPAN {:g} HZ", span)
 
-    def setAttenuation(self, attenuation):
+    def set_attenuation(self, attenuation):
         if attenuation == "AUTO":
             self.write(":SENse:POWer:RF:ATTenuation:AUTO ON")
         else:
             self.write(":SENse:POWer:RF:ATTenuation {:g}".format(float(attenuation)))
 
-    def getRefLevel(self):
+    def get_ref_level(self):
         return self.query(":DISP:WIND1:TRAC:Y:RLEV?")
 
-    def setRefLevel(self, level):
+    def set_ref_level(self, level):
         self.write(":DISP:WIND1:TRAC:Y:RLEV {:g} dBm".format(level))
 
-    def setYAxis(self, scale=100, refPosition=1.0):
-        refPositionPct = round(100 * refPosition)
+    def set_y_axis(self, scale=100, ref_position=1.0):
+        ref_positionPct = round(100 * ref_position)
         self.write(":DISP:TRAC:Y {:g}".format(scale))
-        self.write(":DISP:TRAC:Y:RPOS {:d}PCT".format(refPositionPct))
+        self.write(":DISP:TRAC:Y:RPOS {:d}PCT".format(ref_positionPct))
 
     def sweep_time(self, sweeptime):
         self.write("SENS:SWE:TIME {:g}".format(float(sweeptime)))
 
-    def setMarkerX(self, xvalue, marker=1):
+    def set_markerX(self, xvalue, marker=1):
         self.write("CALC:MARK{:d}:X {:g}".format(marker, xvalue))
 
-    def getMarker(self, marker=1):
+    def get_marker(self, marker=1):
         xvalue = self.query("CALC:MARK{:d}:X?".format(marker))
         yvalue = self.query("CALC:MARK{:d}:Y?".format(marker))
         xvalue = float(xvalue)
@@ -143,19 +143,19 @@ class Vsa(Instrument):
         return (xvalue, yvalue)
 
 
-# @Instrument.registerModels(['UNK'])
+# @Instrument.register_models(['UNK'])
 class VsaAgilent(Vsa):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.drivername = "VsaAgilent"
+        self.driver_name = "VsaAgilent"
 
-    def getMode(self):
+    def get_mode(self):
         mode = self.query("INST:SEL?")
 
         modes = {"WIMAXOFDMA": "wimax", "SA": "spectrum", "VSA": "vsa", "VSA89601": "vsa89601", "WLAN": "wlan"}
         return modes.get(mode, "Unknown")
 
-    def initBasebandIQ(self):
+    def init_baseband_iq(self):
         pass
 
     #         self.write( ':INST BASIC')                 % Switch to IQ analyzer mode
@@ -166,24 +166,24 @@ class VsaAgilent(Vsa):
     #         self.write( ':INIT:CONT OFF')              % Single trigger
     #         self.write( ':WAV:AVER:STAT OFF')          % TURN AVERAGING OFF
 
-    def iqSweepTime(self):
+    def iq_sweep_time(self):
         pass
 
     #         self.write( sprintf(':WAV:SWE:TIME %g', varargin{k+1}))
 
-    def iqBandwidth(self):
+    def iq_bandwidth(self):
         """
         Information BW
         """
         # self.write( sprintf(':WAV:BAND %g', varargin{k+1}))
 
-    def iqSamplerate(self):
+    def iq_samplerate(self):
         """
         IQ Sample Rate
         """
         # self.write( sprintf(':WAV:SRAT %g', varargin{k+1}))
 
-    def iqFetchData(self):
+    def iq_fetch_data(self):
         """
         This assumes that a measurement has already been triggered 
         and aquired.  All that needs to be done is load the result
@@ -226,7 +226,7 @@ class VsaAgilent(Vsa):
         """
         pass
 
-    def setMode(self, mode="spectrum"):
+    def set_mode(self, mode="spectrum"):
         if mode == "spectrum":
             self.write(":INST SA")
             self.write("CONFigure:SANalyzer")
@@ -240,28 +240,28 @@ class VsaAgilent(Vsa):
         elif mode == "vsa":
             self.write(":INST VSA")
         else:
-            self.logger.warning("{:s}.setMode():  Unknown mode: {:s}".format(self.drivername, mode))
+            self.logger.warning("{:s}.set_mode():  Unknown mode: {:s}".format(self.driver_name, mode))
 
-    def getTrace(self):
+    def get_trace(self):
         print("Changed3!")
         self.write(":FORM REAL,32")
         self.write(":FORM:BORD SWAP")
         yy = self.query_binary_values("TRAC? TRACE1", datatype="f", is_big_endian=False)
 
-        numPoints = int(self.query("SWE:POIN?"))
-        sweepTime = float(self.query("SWE:TIME?"))
-        xx = np.linspace(0, sweepTime, num=numPoints)
+        num_points = int(self.query("SWE:POIN?"))
+        sweep_time = float(self.query("SWE:TIME?"))
+        xx = np.linspace(0, sweep_time, num=num_points)
 
         return np.stack((xx, yy))
 
 
-@Instrument.registerModels(["FSQ-26"])
+@Instrument.register_models(["FSQ-26"])
 class VsaRohde(Vsa):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.drivername = "VsaRohde"
+        self.driver_name = "VsaRohde"
 
-    def setMode(self, mode="spectrum"):
+    def set_mode(self, mode="spectrum"):
         if mode == "spectrum":
             self.write("INST SAN")
             # self.write( 'DISP:WIND1:SIZE LARGE')
@@ -277,21 +277,21 @@ class VsaRohde(Vsa):
         elif mode == "vsa":
             self.write(":INST VSA")
         else:
-            self.logger.warning("{:s}.setMode():  Unknown mode: {:s}".format(self.drivername, mode))
+            self.logger.warning("{:s}.set_mode():  Unknown mode: {:s}".format(self.driver_name, mode))
 
-    def getMode(self):
+    def get_mode(self):
         mode = self.query("INST:SEL?")
 
         modes = {"WIM": "wimax", "SAN": "spectrum", "WLAN": "wlan"}
         return modes.get(mode, "Unknown")
 
-    def getTrace(self):
+    def get_trace(self):
         self.write(":FORM REAL,32")
         # self.write(':FORM:BORD SWAP')     # Command doesn't exist
         yy = self.query_binary_values("TRAC? TRACE1", datatype="f", is_big_endian=False)
 
-        numPoints = int(self.query("SWE:POIN?"))
-        sweepTime = float(self.query("SWE:TIME?"))
-        xx = np.linspace(0, sweepTime, num=numPoints)
+        num_points = int(self.query("SWE:POIN?"))
+        sweep_time = float(self.query("SWE:TIME?"))
+        xx = np.linspace(0, sweep_time, num=num_points)
 
         return np.stack((xx, yy))

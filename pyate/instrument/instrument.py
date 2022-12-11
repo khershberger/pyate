@@ -44,16 +44,16 @@ def pyvisaExceptionHandler(fcn):
 
 class Instrument:
     @classmethod
-    def registerModels(cls, models):
+    def register_models(cls, models):
         def _internal(pyclass):
-            manager.InstrumentManager.registerInstrument(models, pyclass)
+            manager.InstrumentManager.register_instrument(models, pyclass)
             return pyclass
 
         return _internal
 
     def __init__(self, *args, **kwargs):
         self.logger = logging.getLogger(__name__)
-        self.drivername = "Instrument"
+        self.driver_name = "Instrument"
 
         if "resource" in kwargs:
             if "addr" in kwargs:
@@ -89,7 +89,7 @@ class Instrument:
         self._res = resource
 
     def refreshIDN(self):
-        self.identity = manager.InstrumentManager.parseIdnString(self.res.query("*IDN?"))
+        self.identity = manager.InstrumentManager.parse_ident_string(self.res.query("*IDN?"))
 
     def open(self):
         self.res.open()
@@ -142,27 +142,27 @@ class Instrument:
     def query_binary_values(self, *args, **kwargs):
         return self.res.query_binary_values(*args, **kwargs)
 
-    def testConnection(self, attemptReset=False, triesLeft=1):
+    def test_connection(self, attempt_reset=False, tries_left=1):
         try:
             self.refreshIDN()
             return True
         except visawrapper.pyvisa.errors.VisaIOError as e:
-            if attemptReset and (triesLeft > 0):
+            if attempt_reset and (tries_left > 0):
                 self.res.close()
                 self.res.open()
-                return self.testConnection(attemptReset=attemptReset, triesLeft=triesLeft - 1)
+                return self.test_connection(attempt_reset=attempt_reset, tries_left=tries_left - 1)
             else:
                 return False
 
-    def checkParameter(self, parName, parValue, dtype, drange):
+    def check_parameter(self, par_name, par_value, dtype, drange):
         if dtype is not None:
-            if not isinstance(parValue, dtype):
-                raise TypeError("{:s} must be of type {:s}".format(parName, str(dtype)))
+            if not isinstance(par_value, dtype):
+                raise TypeError("{:s} must be of type {:s}".format(par_name, str(dtype)))
 
         if drange is not None:
             if isinstance(drange, list):
-                if parValue not in drange:
-                    raise ValueError("{:s} must be in range {:s}".format(parName, str(drange)))
+                if par_value not in drange:
+                    raise ValueError("{:s} must be in range {:s}".format(par_name, str(drange)))
             if isinstance(drange, tuple):
-                if (parValue < drange[0]) or (parValue > drange[1]):
-                    raise ValueError("{:s} must be between {:g} and {:g}".format(parName, drange[0], drange[1]))
+                if (par_value < drange[0]) or (par_value > drange[1]):
+                    raise ValueError("{:s} must be between {:g} and {:g}".format(par_name, drange[0], drange[1]))

@@ -7,16 +7,16 @@ Created on 2017-11-13
 from pyate.instrument import Instrument
 
 
-@Instrument.registerModels(["8845A", "34401A"])
+@Instrument.register_models(["8845A", "34401A"])
 class Multimeter(Instrument):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.drivername = "Multimeter"
+        self.driver_name = "Multimeter"
 
-    def setSettings(self, mode="DCV", trigSource="IMM", filter=20):
+    def set_settings(self, mode="DCV", trig_source="IMM", filter=20):
 
         self.write("DET:BAND {:g}".format(filter))
-        self.write("TRIG:SOUR {:s}".format(trigSource))
+        self.write("TRIG:SOUR {:s}".format(trig_source))
 
         if averaging == "AUTO":
             self.write("SENS{:d}:AVER:COUN:AUTO 1".format(channel))
@@ -25,7 +25,7 @@ class Multimeter(Instrument):
         else:
             self.write("SENS{:d}:AVER:COUN {:d}".format(channel, averaging))
 
-    def measCurrentDC(self, mode="MEAS"):
+    def meas_current_dc(self, mode="MEAS"):
         if mode == "MEAS":
             result = self.query("MEAS:CURR:DC?")
         elif mode == "READ":
@@ -39,7 +39,7 @@ class Multimeter(Instrument):
             value = float("nan")
         return value
 
-    def measVoltageDC(self):
+    def meas_voltage_dc(self):
         # self.write('CONF:VOLT:DC AUTO')
         # self.write('INIT')
         # result = self.query('FETC?')
@@ -54,4 +54,4 @@ class Multimeter(Instrument):
 class MultimeterFluke(Multimeter):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.drivername = "MultimeterFluke"
+        self.driver_name = "MultimeterFluke"
