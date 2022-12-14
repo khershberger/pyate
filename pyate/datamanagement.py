@@ -1,15 +1,22 @@
 """
 Created on May 9, 2019
 
+ToDo:
+- Don't create new record dicts, but rather set values to None
+- check if next_group is called without calling next_record first
+
 @author: kyleh
 """
 
+from collections import OrderedDict
 from datetime import datetime
+from itertools import product
+import logging
+
 from matplotlib.pyplot import plot
 import numpy as np
 from scipy.stats import linregress
 import pandas as pd
-from itertools import product
 
 
 class DataLogger(object):
@@ -17,20 +24,23 @@ class DataLogger(object):
     classdocs
     """
 
-    def __init__(self, logfile=None, timestamp=True):
+    def __init__(self, logfile=None, logfile_format="csv", autosave=False, timestamp=True):
         """
         Constructor
         """
 
-        self._enableTimestamp = timestamp
-        self._recordStartTime = datetime.now()
-        self._recordStopTime = None
+        self._logger = logging.getLogger(__name__)
+
         self._logfile = logfile
+        self._logfile_started = False
+        self._logfile_format = logfile_format
+        self._autosave = autosave
+
         self._enable_timestamp = timestamp
         self._record_start_time = datetime.now()
         self._record_stop_time = None
-        self._data = {}
-        self._record_current = {}
+        self._data = OrderedDict()
+        self._record_current = OrderedDict()
         self._record_num = 0
         self._num_records = 0
 
@@ -39,12 +49,16 @@ class DataLogger(object):
 
         self._column_order = []
 
-        self._value_missing = float("nan")
+        # self._value_missing = float("nan")
+        self._value_missing = None
 
     def __getitem__(self, key):
         return self._record_current[key]
 
     def __setitem__(self, key, val):
+        if self._logfile_started and key not in self._data:
+            raise (KeyError("Cannot add new keys once logfile has been started"))
+
         self._record_current[key] = val
 
     def last(self, key):
@@ -82,22 +96,21 @@ class DataLogger(object):
         self._record_current["index"] = self._record_num
         self._record_current["group"] = self._group_num
 
-        keysAll = set(list(self._record_current.keys()) + list(self._data.keys()))
+        # Since keys in _record_current are never deleted, then _record_current should
+        # always contain the keys already in _data 
 
-        for key in keysAll:
+        for key,item in self._record_current.items():
             if key not in self._data:
-                # Create missing records
+                # Create missing record & fill with appropriate missing data value
                 self._data[key] = [self._value_missing] * self._num_records
-            if key not in self._record_current:
-                # The current results didn't have a previously assigned value.  Add nan
-                self._data[key].append(self._value_missing)
-            else:
-                self._data[key].append(self._record_current[key])
-    
-        # if self._autosave:
-        #     self.write_record()
+            
+            self._data[key].append(self._record_current[key])
 
-        self._record_current = {}
+        if self._autosave:
+            self.write_record()
+
+        for key in self._record_current.keys():
+            self._record_current[key] = None
         self._record_num += 1
         self._num_records += 1
         self._record_start_time = datetime.now()
@@ -116,19 +129,51 @@ class DataLogger(object):
     def to_frame(self):
         # Create full column list by putting the columns specified in
         # columnOrder  first and then any missing ones at the end
-        columns = self._column_order + list(set(self._data.keys()) - set(self._column_order))
+        columns = self._column_order.copy()
+        for key in self._data.keys():
+            if key not in columns:
+                columns.append(key)
+
         return pd.DataFrame(self._data, columns=columns).set_index("index")
 
+    def to_csv(self, data):
+        def add_quotes(text):
+            if "," in text:
+                text = f'"{text}"'
+            return text
+
+        line = ",".join([add_quotes(str(obj)) for obj in data])
+        self._logger.debug(f"to_csv.line = {line}")
+        return line
+
     def write_record(self):
+        if self._logfile is None:
+            raise ValueError("Logfile not specified")
+        self._logger.debug("Writing record data")
+        data_to_write = self._record_current
         if not self._logfile_started:
-            pass
+            with open(self._logfile, "wt") as fid:
+                fid.write(self.to_csv(data_to_write.keys()))
+                fid.write("\n")
+            self._logfile_started = True
 
+        with open(self._logfile, "at") as fid:
+            fid.write(
+                self.to_csv(data_to_write.values())
+            )  # I think an odict should return the values in the same order as the keys....
+            fid.write("\n")
 
-    def write_data(self, fname, name="data", fformat="csv"):
-        if fformat == "csv":
-            self.to_frame().to_csv(fname)
-        elif fformat == "hdf":
-            self.to_frame().to_hdf(fname, name)
+    def write_data(self, filename=None, format="csv", name="data"):
+        if filename is None:
+            filename = self._logfile
+
+        if filename is None:
+            raise(FileNotFoundError("No output filename provided"))
+
+        if format == "csv":
+            self.to_frame().to_csv(filename)
+        elif format == "hdf":
+            self.to_frame().to_hdf(filename, name)
 
     def plot(self, x=None, y=None, **kwargs):
         if x is None:
