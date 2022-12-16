@@ -6,6 +6,8 @@ Created on Thu Mar 30 14:09:15 2017
 """
 
 import logging
+from re import search
+
 from pyate import visawrapper
 
 
@@ -43,21 +45,24 @@ class InstrumentManager(object):
         model = identity["model"]
 
         logger.debug("Model = " + model)
-        #         available_drivers = {
-        #                 'DP832':   powersupply.PowerSupplyDP832,
-        #                 'FSQ-26':  spectrumanalyzer.VsaRohde,
-        #                 'E8267D':  signalgenerator.VsgAgilent,
-        #                 'E5071B':  networkanalyzer.VnaAgilentENA,
-        #                 'DG1032Z': waveformgenerator.WaveformGenerator,
-        #                 'E4417A':  powermeter.PowerMeter,
-        #                 'DS1054Z': oscilloscope.Oscilloscope
-        #             }
 
-        if model in cls._models:
-            return cls._models[model](resource=res)
+        driver_class = cls.find_instrument_class(cls, model)
+
+        if driver_class is not None:
+            logger.debug("Found match for %s: %s", model, str(driver_class))
+            return driver_class(resource=res)
         else:
+            # No driver found, return the bad news...
             logger.error("Unknown model: " + model)
             return None
+
+    @classmethod
+    def find_instrument_class(cls, model_to_find):
+        for model in cls._models.keys():
+            if search(model, model_to_find):
+                driver_class = cls._models[model]
+                return driver_class
+        return None
 
     @classmethod
     def get_ident(cls, addr):
