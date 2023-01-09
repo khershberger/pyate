@@ -27,11 +27,18 @@ from pyate.instrument import Instrument
 from pyate.instrument.error import InstrumentNothingToRead
 
 
-@Instrument.register_models(["E4417A"])
 class PowerMeter(Instrument):
-    def __init__(self, *args, **kwargs):
+    """
+    Superclass for all Power Meter instruments
+
+    Outliens required functionality for all Power Meter drivers and provies
+    helper methods.
+    """
+
+    def __init__(self, *args, channel=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.driver_name = "PowerMeter"
+        self.set_default_channel(channel)
 
         # increase timeout
         ##### WARNING!!!  Apparently pyfisa timeout is in milliseconds
@@ -39,97 +46,111 @@ class PowerMeter(Instrument):
         # self.res.timeout = 500.0          # This is due to periodically long read times
         self.delay = 0.05  # Prevent instrument from getting hung up by talking to it too fast
 
-    def set_offset(self, channel, value=None, enable=None):
+
+@Instrument.register_models(["E4417A"])
+class PowerMeterKeysight(PowerMeter):
+    def __init__(self, *args, channel=None, **kwargs):
+        """
+        Constructor for Keysight RF Power Meters
+
+        Parameters
+        ----------
+        channel : int, optional
+            Default channel to use for instrument
+
+        Returns
+        -------
+        None.
+
+        """
+        super().__init__(*args, channel=channel, **kwargs)
+        self.driver_name = "PowerMeterKeysight"
+
+    def set_offset(self, value: float = None, enable: bool = None, channel: int = None):
+        channel = self.get_default_channel(default=channel)
         if value is not None:
-            self.write("SENS{:d}:CORR:GAIN2 {:g}".format(channel, value))
+            self.write(f"SENS{channel}:CORR:GAIN2 {value}")
 
         if enable is not None:
-            self.write("SENS{:d}:CORR:GAIN2:STAT {:b}".format(channel, enable))
+            self.write(f"SENS{channel}:CORR:GAIN2:STAT {enable}")
 
-    def set_duty_cycle(self, channel, value=None, enable=None):
+    def set_duty_cycle(self, value: float = None, enable: bool = None, channel: int = None):
+        channel = self.get_default_channel(default=channel)
         if value is not None:
-            self.write("SENS{:d}:CORR:DCYC {:g}".format(channel, value * 100.0))
+            self.write(f"SENS{channel}:CORR:DCYC {value * 100.0}")
 
         if enable is not None:
-            self.write("SENS{:d}:CORR:DCYC:STAT {:b}".format(channel, enable))
+            self.write(f"SENS{channel}:CORR:DCYC:STAT {enable}")
 
-    def get_frequency(self, channel):
-        return float(self.query("SENS{:d}:FREQ?".format(channel)))
+    def get_frequency(self, channel: int = None):
+        channel = self.get_default_channel(default=channel)
+        return float(self.query(f"SENS{channel}:FREQ?"))
 
-    def set_frequency(self, channel, freq):
-        self.write("SENS{:d}:FREQ {:g}HZ".format(channel, freq))
+    def set_frequency(self, frequency, channel: int = None):
+        channel = self.get_default_channel(default=channel)
+        self.write(f"SENS{channel}:FREQ {frequency/1E9:.3f}GHZ")
 
     def set_settings(
         self,
-        channel,
-        readings_per_second=None,
-        continuous=None,
-        trig_source=None,
-        averaging=None,
-        resolution=None,
-        offset=None,
-        dutycycle=None,
+        channel: int = None,
+        readings_per_second: int = None,
+        continuous: bool = None,
+        trig_source: str = None,
+        averaging: str = None,
+        resolution: int = None,
+        offset: float = None,
+        dutycycle: bool = None,
     ):
+
+        channel = self.get_default_channel(default=channel)
 
         # This must be set before averaging as it will reset the averaging settings
         if resolution is not None:
-            init_status = self.query("INIT{:d}:CONT?".format(channel))
-            self.write("CONF{:d} DEF,{:d},(@{:d})".format(channel, resolution, channel))
-            self.write("INIT{:d}:CONT {:s}".format(channel, init_status))
+            init_status = self.query(f"INIT{channel}:CONT?")
+            self.write(f"CONF{channel} DEF,{resolution},(@{channel})")
+            self.write(f"INIT{channel}:CONT {init_status}")
 
         if continuous is not None:
-            self.write("INIT{:d}:CONT {:d};".format(channel, int(continuous)))
+            self.write(f"INIT{channel}:CONT {int(continuous)};")
         if trig_source is not None:
-            self.write("TRIG{:d}:SOUR {:s}".format(channel, trig_source))
+            self.write(f"TRIG{channel}:SOUR {trig_source}")
         if readings_per_second is not None:
-            self.write("SENS{:d}:SPE {:d}".format(channel, readings_per_second))
+            self.write(f"SENS{channel}:SPE {readings_per_second}")
         if averaging is not None:
             if averaging == False:
-                self.write("SENS{:d}:AVER 0".format(channel))
+                self.write(f"SENS{channel}:AVER 0")
             elif (averaging == "auto") or (averaging == "AUTO"):
-                self.write("SENS{:d}:AVER 1".format(channel))
-                self.write("SENS{:d}:AVER:COUN:AUTO 1".format(channel))
+                self.write(f"SENS{channel}:AVER 1")
+                self.write(f"SENS{channel}:AVER:COUN:AUTO 1")
             else:
-                self.write("SENS{:d}:AVER 1".format(channel))
-                self.write("SENS{:d}:AVER:COUN:AUTO 0".format(channel))
-                self.write("SENS{:d}:AVER:COUN {:d}".format(channel, averaging))
+                self.write(f"SENS{channel}:AVER 1")
+                self.write(f"SENS{channel}:AVER:COUN:AUTO 0")
+                self.write(f"SENS{channel}:AVER:COUN {averaging}")
 
         if offset is not None:
             if isinstance(offset, bool):
-                self.write("SENS{:d}:CORR:GAIN2:STAT {:b}".format(channel, offset))
+                self.write(f"SENS{channel}:CORR:GAIN2:STAT {offset}")
             else:
-                self.write("SENS{:d}:CORR:GAIN2:STAT 1".format(channel))
-                self.write("SENS{:d}:CORR:GAIN2 {:g}".format(channel, offset))
+                self.write(f"SENS{channel}:CORR:GAIN2:STAT 1")
+                self.write(f"SENS{channel}:CORR:GAIN2 {offset}")
 
         if dutycycle is not None:
             if isinstance(dutycycle, bool):
-                self.write("SENS{:d}:CORR:DCYC:STAT {:d}".format(channel, dutycycle))
+                self.write(f"SENS{channel}:CORR:DCYC:STAT {dutycycle}")
             else:
-                self.write("SENS{:d}:CORR:DCYC:STAT 1".format(channel))
-                self.write("SENS{:d}:CORR:DCYC {:g}".format(channel, dutycycle * 100.0))
+                self.write(f"SENS{channel}:CORR:DCYC:STAT 1")
+                self.write(f"SENS{channel}:CORR:DCYC {dutycycle * 100.0}")
 
-    #    def get_settings(self,channel):
-    #        result = {}
-    #        result['readings_per_second'] = self.query('SENS{:d}:SPE?'.format(channel))
-    #        result['continuous']        = self.query('INIT{:d}:CONT?'.format(channel))
-    #        result['trig_source']        = self.query('TRIG:SOUR?'.format(channel))
-    #
-    #        if (self.query('SENS{:d}.AVER:COUN:AUTO?'.format(channel)) == 'AUTO'):
-    #            result['averaging']     = 'AUTO'
-    #        else:
-    #            result['averaging']     = self.query('SENS{:d}:AVER:COUN?'.format(channel))
-    #
-    #        return result
-
-    def get_settings(self, channel):
+    def get_settings(self, channel: int = None):
+        channel = self.get_default_channel(default=channel)
         result = {}
-        result["continuous"] = bool(int(self.query("INIT{:d}:CONT?".format(channel))))
-        result["trig_source"] = self.query("TRIG{:d}:SOUR?".format(channel))
-        result["readings_per_second"] = int(self.query("SENS{:d}:SPE?".format(channel)))
+        result["continuous"] = bool(int(self.query(f"INIT{channel}:CONT?")))
+        result["trig_source"] = self.query(f"TRIG{channel}:SOUR?")
+        result["readings_per_second"] = int(self.query(f"SENS{channel}:SPE?"))
 
-        avgen = bool(int(self.query("SENS{:d}:AVER?".format(channel))))
-        avgauto = bool(int(self.query("SENS{:d}:AVER:COUN:AUTO?".format(channel))))
-        avgcnt = int(self.query("SENS{:d}:AVER:COUN?".format(channel)))
+        avgen = bool(int(self.query(f"SENS{channel}:AVER?")))
+        avgauto = bool(int(self.query(f"SENS{channel}:AVER:COUN:AUTO?")))
+        avgcnt = int(self.query(f"SENS{channel}:AVER:COUN?"))
         if not avgen:
             result["averaging"] = False
         elif avgauto:
@@ -137,32 +158,33 @@ class PowerMeter(Instrument):
         else:
             result["averaging"] = avgcnt
 
-        # result['resolution'] = self.query('TRIG{:d}:SOUR'.format(channel))
+        # result['resolution'] = self.query(f'TRIG{channel}:SOUR')
 
-        offseten = bool(int(self.query("SENS{:d}:CORR:GAIN2:STAT?".format(channel))))
+        offseten = bool(int(self.query(f"SENS{channel}:CORR:GAIN2:STAT?")))
         if not offseten:
             result["offset"] = False
         else:
-            result["offset"] = float(self.query("SENS{:d}:CORR:GAIN2?".format(channel)))
+            result["offset"] = float(self.query(f"SENS{channel}:CORR:GAIN2?"))
 
-        dutyen = bool(int(self.query("SENS{:d}:CORR:DCYC:STAT?".format(channel))))
+        dutyen = bool(int(self.query(f"SENS{channel}:CORR:DCYC:STAT?")))
         if not dutyen:
             result["dutycycle"] = False
         else:
-            result["dutycycle"] = float(self.query("SENS{:d}:CORR:DCYC?".format(channel)))
+            result["dutycycle"] = float(self.query(f"SENS{channel}:CORR:DCYC?"))
         return result
 
-    def meas_power(self, channel, resolution=None):
+    def measure_power(self, resolution=None, channel: int = None):
+        channel = self.get_default_channel(default=channel)
         if resolution is not None:
-            self.set_resolution(channel, resolution)
+            self.set_settings(resolution=resolution, channel=channel)
         # self.write('INIT{:d}:CONT 1'.format(channel))
         # self.write('INIT{:d}'.format(channel), delay=self.delay)
-        result = self.query("FETC{:d}?".format(channel), delay=self.delay)
+        result = self.query(f"FETC{channel}?", delay=self.delay)
         return float(result)
 
-    def set_defaults(self, channel):
+    def set_defaults(self, channel: int = None):
         self.set_settings(
-            channel,
+            channel=channel,
             readings_per_second=40,
             continuous=True,
             trig_source="IMM",
@@ -174,3 +196,4 @@ class PowerMeter(Instrument):
 
         # self.set_offset(channel, enable=False, value=0.)
         # self.set_duty_cycle(channel, enable=False, value=0.01)
+

@@ -58,6 +58,8 @@ class Instrument:
         self.logger = logging.getLogger(__name__)
         self.driver_name = "Instrument"
 
+        self._channel_default = None
+
         if "resource" in kwargs:
             if "addr" in kwargs:
                 self.logger.warning("Called with res and addr.  res will take precidence")
@@ -169,3 +171,52 @@ class Instrument:
             if isinstance(drange, tuple):
                 if (par_value < drange[0]) or (par_value > drange[1]):
                     raise ValueError("{:s} must be between {:g} and {:g}".format(par_name, drange[0], drange[1]))
+
+    def get_default_channel_default(self, default=None) -> int:
+        """
+        Returns instruments devault channel setting
+
+        Parameters
+        ----------
+        default : int, optional
+            Value to return if instrument does not have a default channel set
+
+        Raises
+        ------
+        TypeError
+
+        Returns
+        -------
+        int
+            Instruments devault channel setting
+
+        """
+        if default is None:
+            if self._channel_default is None:
+                raise Exception("Ambiguous channel: Channel number must be set before operation")
+            return self._channel_default
+        elif isinstance(default, int):
+            return default
+        raise TypeError("Channel must either be an int or None")
+
+    def set_channel_default(self, channel: int = None):
+        """
+        Sets default channel for this instrument
+
+        Parameters
+        ----------
+        channel : int, optional
+            Default channel to use for instrument
+
+        Raises
+        ------
+        TypeError
+
+        Returns
+        -------
+        None.
+
+        """
+        if channel is not None and not isinstance(channel, int):
+            raise TypeError("channel must be an int or None")
+        self._channel_default = channel
