@@ -18,6 +18,7 @@ class InstrumentManager(object):
 
     @classmethod
     def register_instrument(cls, models, pyclass):
+        logging.getLogger(__name__).debug("InstrumentManager.register_instrument(%s)", str(models))
         if isinstance(models, str):
             cls._models[models] = pyclass
         elif isinstance(models, list):
@@ -46,7 +47,7 @@ class InstrumentManager(object):
 
         logger.debug("Model = " + model)
 
-        driver_class = cls.find_instrument_class(cls, model)
+        driver_class = cls.find_instrument_class(model)
 
         if driver_class is not None:
             logger.debug("Found match for %s: %s", model, str(driver_class))

@@ -11,6 +11,7 @@ import pyvisa.errors
 
 from pyate import visawrapper
 from pyate.instrument import manager
+from pyate.instrument.error import InstrumentIOError
 
 
 def pyvisaExceptionHandler(fcn):
@@ -45,6 +46,8 @@ def pyvisaExceptionHandler(fcn):
 class Instrument:
     @classmethod
     def register_models(cls, models):
+        logging.getLogger(__name__).debug(".register_models(%s)", str(models))
+
         def _internal(pyclass):
             manager.InstrumentManager.register_instrument(models, pyclass)
             return pyclass
