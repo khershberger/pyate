@@ -48,7 +48,7 @@ class VsgAgilent(Vsg):
         super().__init__(*args, **kwargs)
         self.driver_name = "VsgAgilent"
 
-    def set_requency(self, freq):
+    def set_frequency(self, freq):
         self.write("SOUR:FREQ:FIX {:g}GHz".format(freq / 1e9))
 
     def send_waveform(self, iq, markers=None):
@@ -105,7 +105,7 @@ class VsgRohde(Vsg):
         super().__init__(*args, **kwargs)
         self.driver_name = "VsgRohde"
 
-    def set_requency(self, freq):
+    def set_frequency(self, freq):
         self.write("SOUR:FREQ {:g}GHz".format(freq / 1e9))
 
     def set_modulation_state(self, enable):
