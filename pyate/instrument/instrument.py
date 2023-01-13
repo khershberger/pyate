@@ -27,15 +27,15 @@ def pyvisaExceptionHandler(fcn):
                 if e.error_code == pyvisa.errors.VI_ERROR_TMO:
                     self.logger.warning("NI Timeout occured during Instrument.write() operation")
                 elif e.error_code == pyvisa.errors.VI_ERROR_CONN_LOST:
-                    self.res.open()
+                    self.resource.open()
                 else:
                     raise e
             except pyvisa.errors.InvalidSession:
                 self.logger.warning("InvalidSession error occured attempting to reopen")
-                self.res.open()
+                self.resource.open()
             except ConnectionResetError as e:
                 self.logger.warning("ConnectionResetError during Instrument.write().  Closing & Reopening")
-                self.res.reset()
+                self.resource.reset()
             except visawrapper.prologix.PrologixTimeout as e:
                 self.logger.warning("Prologix Timeout occured during Instrument.write() operation")
         raise InstrumentIOError("Instrument.write() Max retries exceeded")
@@ -62,46 +62,46 @@ class Instrument:
 
         if "resource" in kwargs:
             if "addr" in kwargs:
-                self.logger.warning("Called with res and addr.  res will take precidence")
-            self.res = kwargs["resource"]
+                self.logger.warning("Called with resource and addr.  resource will take precidence")
+            self.resource = kwargs["resource"]
         elif "addr" in kwargs:
-            self.res = visawrapper.ResourceManager.open_resource(kwargs["addr"])
+            self.resource = visawrapper.ResourceManager.open_resource(kwargs["addr"])
         else:
             self.logger.error("Attempt to create instrument without address")
             raise manager.InstrumentDriverException("Attempt to create instrument without address")
 
-        self.res.open()
-        self.res.read_termination = "\n"
+        self.resource.open()
+        self.resource.read_termination = "\n"
         self.refreshIDN()
 
     def __del__(self):
-        self.res.close()
+        self.resource.close()
 
     @property
     def res(self):
-        return self._res
+        return self._resource
 
     @res.setter
     def res(self, resource):
-        self._res = resource
+        self._resource = resource
 
     @property
     def resource(self):
-        return self._res
+        return self._resource
 
     @resource.setter
     def resource(self, resource):
-        self._res = resource
+        self._resource = resource
 
     def refreshIDN(self):
-        self.identity = manager.InstrumentManager.parse_ident_string(self.res.query("*IDN?"))
+        self.identity = manager.InstrumentManager.parse_ident_string(self.resource.query("*IDN?"))
 
     def open(self):
-        self.res.open()
+        self.resource.open()
 
     def close(self):
         try:
-            self.res.close()
+            self.resource.close()
         except pyvisa.errors.VisaIOError as e:
             if e.error_code == pyvisa.errors.VI_ERROR_INV_OBJECT:
                 # We'll consider this a sucess
@@ -117,21 +117,21 @@ class Instrument:
     def reset(self):
         self.logger.debug("Resetting resource")
         try:
-            self.res.close()
+            self.resource.close()
         except pyvisa.errors.VisaIOError as e:
             self.logger.error("VisaIOError: {:s}".format(str(e.error_code)))
-        self.res.open()
-        self.res.clear()
+        self.resource.open()
+        self.resource.clear()
 
     @pyvisaExceptionHandler
     def write(self, command, delay=0.0, retries=3):
-        res = self.res.write(command)
+        result = self.resource.write(command)
         time.sleep(delay)
-        return res
+        return result
 
     @pyvisaExceptionHandler
     def read(self, retries=3):
-        return self.res.read()
+        return self.resource.read()
 
     def query(self, command, delay=0, retries=3):
         self.write(command, retries=retries)
@@ -139,13 +139,13 @@ class Instrument:
         return self.read(retries=retries)
 
     def write_binary_values(self, *args, **kwargs):
-        return self.res.write_binary_values(*args, **kwargs)
+        return self.resource.write_binary_values(*args, **kwargs)
 
     def read_binary_values(self, *args, **kwargs):
-        return self.res.read_binary_values(*args, **kwargs)
+        return self.resource.read_binary_values(*args, **kwargs)
 
     def query_binary_values(self, *args, **kwargs):
-        return self.res.query_binary_values(*args, **kwargs)
+        return self.resource.query_binary_values(*args, **kwargs)
 
     def test_connection(self, attempt_reset=False, tries_left=1):
         try:
@@ -153,8 +153,8 @@ class Instrument:
             return True
         except visawrapper.pyvisa.errors.VisaIOError as e:
             if attempt_reset and (tries_left > 0):
-                self.res.close()
-                self.res.open()
+                self.resource.close()
+                self.resource.open()
                 return self.test_connection(attempt_reset=attempt_reset, tries_left=tries_left - 1)
             else:
                 return False

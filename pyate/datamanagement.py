@@ -97,13 +97,13 @@ class DataLogger(object):
         self._record_current["group"] = self._group_num
 
         # Since keys in _record_current are never deleted, then _record_current should
-        # always contain the keys already in _data 
+        # always contain the keys already in _data
 
-        for key,item in self._record_current.items():
+        for key, item in self._record_current.items():
             if key not in self._data:
                 # Create missing record & fill with appropriate missing data value
                 self._data[key] = [self._value_missing] * self._num_records
-            
+
             self._data[key].append(self._record_current[key])
 
         if self._autosave:
@@ -168,7 +168,7 @@ class DataLogger(object):
             filename = self._logfile
 
         if filename is None:
-            raise(FileNotFoundError("No output filename provided"))
+            raise (FileNotFoundError("No output filename provided"))
 
         if format == "csv":
             self.to_frame().to_csv(filename)
