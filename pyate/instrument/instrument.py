@@ -172,7 +172,7 @@ class Instrument:
                 if (par_value < drange[0]) or (par_value > drange[1]):
                     raise ValueError("{:s} must be between {:g} and {:g}".format(par_name, drange[0], drange[1]))
 
-    def get_default_channel_default(self, default=None) -> int:
+    def get_default_channel(self, default=None) -> int:
         """
         Returns instruments devault channel setting
 
@@ -199,7 +199,7 @@ class Instrument:
             return default
         raise TypeError("Channel must either be an int or None")
 
-    def set_channel_default(self, channel: int = None):
+    def set_default_channel(self, channel: int = None):
         """
         Sets default channel for this instrument
 
