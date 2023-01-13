@@ -42,7 +42,7 @@ class Vsg(Instrument):
         raise NotImplementedError
 
 
-@Instrument.register_models(["E8267D", "N518[1-2]B"])
+@Instrument.register_models(["E8267D", "N518[1-2]B", "83712B"])
 class VsgAgilent(Vsg):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
