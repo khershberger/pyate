@@ -25,7 +25,9 @@ def pyvisaExceptionHandler(fcn):
                 return fcn(self, *args, **kwargs)
             except pyvisa.VisaIOError as e:
                 if e.error_code == pyvisa.errors.VI_ERROR_TMO:
-                    self.logger.warning("NI Timeout occured during Instrument.write() operation")
+                    self.logger.warning(
+                        "NI Timeout occured during Instrument.write() operation"
+                    )
                 elif e.error_code == pyvisa.errors.VI_ERROR_CONN_LOST:
                     self.resource.open()
                 else:
@@ -34,10 +36,14 @@ def pyvisaExceptionHandler(fcn):
                 self.logger.warning("InvalidSession error occured attempting to reopen")
                 self.resource.open()
             except ConnectionResetError as e:
-                self.logger.warning("ConnectionResetError during Instrument.write().  Closing & Reopening")
+                self.logger.warning(
+                    "ConnectionResetError during Instrument.write().  Closing & Reopening"
+                )
                 self.resource.reset()
             except visawrapper.prologix.PrologixTimeout as e:
-                self.logger.warning("Prologix Timeout occured during Instrument.write() operation")
+                self.logger.warning(
+                    "Prologix Timeout occured during Instrument.write() operation"
+                )
         raise InstrumentIOError("Instrument.write() Max retries exceeded")
 
     return wrapper
@@ -62,13 +68,17 @@ class Instrument:
 
         if "resource" in kwargs:
             if "addr" in kwargs:
-                self.logger.warning("Called with resource and addr.  resource will take precidence")
+                self.logger.warning(
+                    "Called with resource and addr.  resource will take precidence"
+                )
             self.resource = kwargs["resource"]
         elif "addr" in kwargs:
             self.resource = visawrapper.ResourceManager.open_resource(kwargs["addr"])
         else:
             self.logger.error("Attempt to create instrument without address")
-            raise manager.InstrumentDriverException("Attempt to create instrument without address")
+            raise manager.InstrumentDriverException(
+                "Attempt to create instrument without address"
+            )
 
         self.resource.open()
         self.resource.read_termination = "\n"
@@ -94,7 +104,9 @@ class Instrument:
         self._resource = resource
 
     def refreshIDN(self):
-        self.identity = manager.InstrumentManager.parse_ident_string(self.resource.query("*IDN?"))
+        self.identity = manager.InstrumentManager.parse_ident_string(
+            self.resource.query("*IDN?")
+        )
 
     def open(self):
         self.resource.open()
@@ -109,7 +121,9 @@ class Instrument:
                 pass
             if e.error_code == pyvisa.errors.VI_ERROR_CLOSING_FAILED:
                 # We'll consider this a sucess
-                self.logger.warning("Error when closing device: VI_ERROR_CLOSING_FAILED")
+                self.logger.warning(
+                    "Error when closing device: VI_ERROR_CLOSING_FAILED"
+                )
                 pass
             else:
                 raise e
@@ -155,22 +169,32 @@ class Instrument:
             if attempt_reset and (tries_left > 0):
                 self.resource.close()
                 self.resource.open()
-                return self.test_connection(attempt_reset=attempt_reset, tries_left=tries_left - 1)
+                return self.test_connection(
+                    attempt_reset=attempt_reset, tries_left=tries_left - 1
+                )
             else:
                 return False
 
     def check_parameter(self, par_name, par_value, dtype, drange):
         if dtype is not None:
             if not isinstance(par_value, dtype):
-                raise TypeError("{:s} must be of type {:s}".format(par_name, str(dtype)))
+                raise TypeError(
+                    "{:s} must be of type {:s}".format(par_name, str(dtype))
+                )
 
         if drange is not None:
             if isinstance(drange, list):
                 if par_value not in drange:
-                    raise ValueError("{:s} must be in range {:s}".format(par_name, str(drange)))
+                    raise ValueError(
+                        "{:s} must be in range {:s}".format(par_name, str(drange))
+                    )
             if isinstance(drange, tuple):
                 if (par_value < drange[0]) or (par_value > drange[1]):
-                    raise ValueError("{:s} must be between {:g} and {:g}".format(par_name, drange[0], drange[1]))
+                    raise ValueError(
+                        "{:s} must be between {:g} and {:g}".format(
+                            par_name, drange[0], drange[1]
+                        )
+                    )
 
     def get_default_channel(self, default=None) -> int:
         """
@@ -193,7 +217,9 @@ class Instrument:
         """
         if default is None:
             if self._channel_default is None:
-                raise Exception("Ambiguous channel: Channel number must be set before operation")
+                raise Exception(
+                    "Ambiguous channel: Channel number must be set before operation"
+                )
             return self._channel_default
         elif isinstance(default, int):
             return default

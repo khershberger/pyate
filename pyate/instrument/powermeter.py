@@ -46,8 +46,10 @@ class PowerMeter(Instrument):
         ##### WARNING!!!  Apparently pyfisa timeout is in milliseconds
         # Prologix is in seconds
         # self.res.timeout = 500.0          # This is due to periodically long read times
-        self.delay = 0.05  # Prevent instrument from getting hung up by talking to it too fast
-        
+        self.delay = (
+            0.05  # Prevent instrument from getting hung up by talking to it too fast
+        )
+
 
 @Instrument.register_models(["E4417A"])
 class PowerMeterKeysight(PowerMeter):
@@ -76,7 +78,9 @@ class PowerMeterKeysight(PowerMeter):
         if enable is not None:
             self.write(f"SENS{channel}:CORR:GAIN2:STAT {enable}")
 
-    def set_duty_cycle(self, value: float = None, enable: bool = None, channel: int = None):
+    def set_duty_cycle(
+        self, value: float = None, enable: bool = None, channel: int = None
+    ):
         channel = self.get_default_channel(default=channel)
         if value is not None:
             self.write(f"SENS{channel}:CORR:DCYC {value * 100.0}")
@@ -210,49 +214,40 @@ class PowerMeterRohdeNRP(PowerMeter):
         ##### WARNING!!!  Apparently pyfisa timeout is in milliseconds
         # Prologix is in seconds
         # self.res.timeout = 500.0          # This is due to periodically long read times
-        self.delay = 0.05  # Prevent instrument from getting hung up by talking to it too fast
+        self.delay = (
+            0.05  # Prevent instrument from getting hung up by talking to it too fast
+        )
 
-        self.resource.read_termination = ""   # The ZRP does not seem to use termination chars by default
-        self.set_default_channel(1)        # Single channel device
+        self.resource.read_termination = (
+            ""  # The ZRP does not seem to use termination chars by default
+        )
+        self.set_default_channel(1)  # Single channel device
 
     mapping_trigger_source = (
         ("1", "hold", "HOLD"),
         ("2", "immediate", "IMM"),
         ("4", "internal", "INT"),
         ("8", "bus", "BUS"),
-        ("16", "external", "EXT")
+        ("16", "external", "EXT"),
     )
-    
-    mapping_on_off = (
-        ("1", False, "OFF"),
-        ("2", True, "ON")
-        )
-    
-    mapping_avg_tcon = (
-        ("1", "moving", "MOV"),
-        ("2", "repeat", "REP")
-        )
-    
+
+    mapping_on_off = (("1", False, "OFF"), ("2", True, "ON"))
+
+    mapping_avg_tcon = (("1", "moving", "MOV"), ("2", "repeat", "REP"))
+
     mapping_function = (
         ("POWER:AVG", "continuous_average", "POWER:AVG"),
         ("POWER:TSLOT:AVG", "timeslot_average", "POWER:TSLOT:AVG"),
         ("POWER:BURST:AVG", "burst_average", "POWER:BURST:AVG"),
-        ("XTIME:POWER", "trace", "XTIME:POWER"))
-    
-    mapping_sampling = (
-        ("1", "134.4e3", "FREQ1"),
-        ("2", "119.467e3", "FREQ2")
-        )
-    
-    mapping_sensitivity = (
-        ("0", "high", "0"),
-        ("1", "medium", "1"),
-        ("2", "low", "2")
-        )
-    
+        ("XTIME:POWER", "trace", "XTIME:POWER"),
+    )
+
+    mapping_sampling = (("1", "134.4e3", "FREQ1"), ("2", "119.467e3", "FREQ2"))
+
+    mapping_sensitivity = (("0", "high", "0"), ("1", "medium", "1"), ("2", "low", "2"))
+
     mapping_auto_type = (
         ("1", "resolution", "RESolution"),
-        ("2", "ns_ratio", "NSRatio"))
     
     def map_value(self, input, direction, mapping):
         if direction == "from":
@@ -271,6 +266,9 @@ class PowerMeterRohdeNRP(PowerMeter):
             self.logger.warning(f"map_from_instrument() input of {input} not in mapping table")
             return input
                 
+        ("2", "ns_ratio", "NSRatio"),
+    )
+
     # @pyvisaExceptionHandler
     # def write(self, command, delay=0.0, retries=3):
     #     result = self.res.visalib.write(self.res.session, command)
@@ -301,11 +299,11 @@ class PowerMeterRohdeNRP(PowerMeter):
     def measure_power(self, resolution=None):
         if resolution is not None:
             self.set_resolution(resolution)
-        
+
         self.write("INIT:IMM")
         result = self.query("FETCH?")
         result = float(result.split(",")[0])
-        
+
         # Cap value at -174 dBm as the sensor has a habit of returning negative watt readings
         # with no signal present
         result = max(result, 3.9811e-21)
@@ -315,46 +313,76 @@ class PowerMeterRohdeNRP(PowerMeter):
     def get_settings(self, channel: int = None):
         channel = self.get_default_channel(default=channel)
         result = {}
-        result["function"] = self.map_value(self.query("SENSe:FUNCtion?"), "from", self.mapping_function)
-        result["continuous"] = self.map_value(self.query("INIT:CONT?"), "from", self.mapping_on_off)
-        result["trigger_source"] = self.map_value(self.query("TRIG:SOUR?"), "from", self.mapping_trigger_source)
-        result["sample_rate"] = self.map_value(self.query("SENSe:SAMPling?"), "from", self.mapping_sampling)
-        
+        result["function"] = self.map_value(
+            self.query("SENSe:FUNCtion?"), "from", self.mapping_function
+        )
+        result["continuous"] = self.map_value(
+            self.query("INIT:CONT?"), "from", self.mapping_on_off
+        )
+        result["trigger_source"] = self.map_value(
+            self.query("TRIG:SOUR?"), "from", self.mapping_trigger_source
+        )
+        result["sample_rate"] = self.map_value(
+            self.query("SENSe:SAMPling?"), "from", self.mapping_sampling
+        )
+
         result["frequency"] = float(self.query("SENS:FREQ?"))
 
-        result["range_sensitivity"] = self.map_value(self.query("SENSe:RANGe?"), "from", self.mapping_sensitivity)
-        result["range_auto"] = self.map_value(self.query("SENSe:RANGe:AUTO?"), "from", self.mapping_on_off)
+        result["range_sensitivity"] = self.map_value(
+            self.query("SENSe:RANGe?"), "from", self.mapping_sensitivity
+        )
+        result["range_auto"] = self.map_value(
+            self.query("SENSe:RANGe:AUTO?"), "from", self.mapping_on_off
+        )
 
-        avgen = self.map_value(self.query("SENS:AVER:STAT?"), "from", self.mapping_on_off)
-        avgauto = self.map_value(self.query("SENS:AVER:COUN:AUTO?"), "from", self.mapping_on_off)
+        avgen = self.map_value(
+            self.query("SENS:AVER:STAT?"), "from", self.mapping_on_off
+        )
+        avgauto = self.map_value(
+            self.query("SENS:AVER:COUN:AUTO?"), "from", self.mapping_on_off
+        )
         avgcnt = int(self.query("SENS:AVER:COUN?"))
-        avgtcon =  self.map_value(self.query("SENS:AVER:TCON?"), "from", self.mapping_avg_tcon)
+        avgtcon = self.map_value(
+            self.query("SENS:AVER:TCON?"), "from", self.mapping_avg_tcon
+        )
         # SENSe:AVERage:COUNt:AUTO ONCE
-        
+
         if not avgen:
             result["averaging"] = False
         elif avgauto:
             result["averaging"] = "auto"
         else:
             result["averaging"] = avgcnt
-        
+
         result["average_count"] = avgcnt
-        result["average_auto_type"] = self.map_value(self.query("SENSe:AVERage:COUNt:AUTO:TYPE?"), "from", self.mapping_auto_type)
+        result["average_auto_type"] = self.map_value(
+            self.query("SENSe:AVERage:COUNt:AUTO:TYPE?"), "from", self.mapping_auto_type
+        )
         result["average_mtime"] = float(self.query("SENSe:AVERage:COUNt:AUTO:MTIM?"))
-        result["average_nsratio"] = float(self.query("SENSe:AVERage:COUNt:AUTO:NSRatio?"))
-        result["average_resolution"] = int(self.query("SENSe:AVERage:COUNt:AUTO:RESolution?"))
-        result["average_aperture_time"] = float(self.query(":SENS:POW:AVG:APER?"))           
-        result["averaging_smooth"] = self.map_value(self.query("SENSe:POWer:AVG:SMOothing:STATe?"), "from", self.mapping_on_off)
+        result["average_nsratio"] = float(
+            self.query("SENSe:AVERage:COUNt:AUTO:NSRatio?")
+        )
+        result["average_resolution"] = int(
+            self.query("SENSe:AVERage:COUNt:AUTO:RESolution?")
+        )
+        result["average_aperture_time"] = float(self.query(":SENS:POW:AVG:APER?"))
+        result["averaging_smooth"] = self.map_value(
+            self.query("SENSe:POWer:AVG:SMOothing:STATe?"), "from", self.mapping_on_off
+        )
         result["averaging_tcon"] = avgtcon
 
-        result["buffer"] = self.map_value(self.query(":SENS:POW:AVG:BUFF:STAT?"), "from", self.mapping_on_off)
+        result["buffer"] = self.map_value(
+            self.query(":SENS:POW:AVG:BUFF:STAT?"), "from", self.mapping_on_off
+        )
 
-        offseten = self.map_value(self.query("SENS:CORR:OFFS?"), "from", self.mapping_on_off)
+        offseten = self.map_value(
+            self.query("SENS:CORR:OFFS?"), "from", self.mapping_on_off
+        )
         if not offseten:
             result["offset"] = False
         else:
             result["offset"] = float(self.query("SENS:CORR:OFFS?"))
-            
+
         dutyen = bool(int(self.query("SENS:CORR:DCYC:STAT?")))
         if not dutyen:
             result["dutycycle"] = False
@@ -368,7 +396,9 @@ class PowerMeterGigatronics(Instrument):
     def __init__(self, *args, channel=None, **kwargs):
         super().__init__(*args, channel=channel, **kwargs)
         self.driver_name = "PowerMeterGigatronics"
-        self.delay = 0.05  # Prevent instrument from getting hung up by talking to it too fast
+        self.delay = (
+            0.05  # Prevent instrument from getting hung up by talking to it too fast
+        )
 
     def set_offset(self, value: float = None, enable: bool = None, channel: int = None):
         channel = self.get_default_channel(default=channel)
@@ -380,7 +410,9 @@ class PowerMeterGigatronics(Instrument):
             # Turn offset on/off
             self.write(f"{channel}E:OF{enable}")
 
-    def set_duty_cycle(self, value: float = None, enable: bool = None, channel: int = None):
+    def set_duty_cycle(
+        self, value: float = None, enable: bool = None, channel: int = None
+    ):
         raise NotImplementedError()
 
     def get_frequency(self, channel: int = None):
