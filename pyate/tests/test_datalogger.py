@@ -3,9 +3,11 @@ Created on May 10, 2019
 
 @author: kyleh
 """
-import unittest
-import sys
+import logging
 import os
+import sys
+from time import sleep
+import unittest
 
 print(sys.path)
 print(os.getcwd())
@@ -41,17 +43,23 @@ class TestDataLogger(unittest.TestCase):
 
     def test_write(self):
         datalog = self.create_test_instance()
-        self.assertRaises(FileNotFoundError, datalog.write_data, filename=None, format="csv")
+        self.assertRaises(
+            FileNotFoundError, datalog.write_data, filename=None, format="csv"
+        )
         datalog.write_data(filename="unittest.csv", format="csv")
         # datalog.write_data(filename="unittest.hdf", format="hdf")
         datalog._logfile = "unittest.csv"
         datalog.write_data(format="csv")
 
     def test_autosave(self):
-        datalog = self.create_test_instance(kwargs={"logfile": "unittest.log", "autosave": True})
+        datalog = self.create_test_instance(
+            kwargs={"logfile": "unittest.log", "autosave": True}
+        )
 
     def test_autosave_then_write(self):
-        datalog = self.create_test_instance(kwargs={"logfile": "unittest.log", "autosave": True})
+        datalog = self.create_test_instance(
+            kwargs={"logfile": "unittest.log", "autosave": True}
+        )
         datalog.write_data()
         datalog.write_data(filename=None, format="csv")
         # datalog.write_data(filename="unittest.hdf", format="hdf")
@@ -68,7 +76,9 @@ class TestDataLogger(unittest.TestCase):
         self.assertEqual(datalog._data["newkey"][-1], 42)
 
     def test_addkey_after_autosave(self):
-        data = self.create_test_instance(kwargs={"logfile": "unittest.log", "autosave": True})
+        data = self.create_test_instance(
+            kwargs={"logfile": "unittest.log", "autosave": True}
+        )
         self.assertRaises(KeyError, lambda: data.__setitem__("newkey", 42))
 
     def test_print_trend_int(self):
@@ -95,6 +105,49 @@ class TestDataLogger(unittest.TestCase):
                 print("Num Records: {:d}".format(datalog.num_records()))
                 print(datalog.get_data("f", slice(None, None)))
                 print("Slope: {:g}".format(datalog.trend("f", 3)))
+
+    def test_access_methods(self):
+        datalog = self.create_test_instance()
+
+        result = datalog.get_group(0, "int1")
+        self.assertListEqual(result, [])
+
+        result = datalog.get_group(-1, "int1")
+        self.assertListEqual(result, [2000, 2001, 2002, 2003, 2004])
+
+        result = datalog.get_group(-2, "int1")
+        self.assertListEqual(result, [1000, 1001, 1002, 1003, 1004])
+
+
+class TestDataLoggerPlot(unittest.TestCase):
+    def setUp(self):
+        self._logger = logging.getLogger(__name__)
+        logging.basicConfig(level=logging.INFO)
+
+    def create_test_instance(self, args=[], kwargs={}):
+        log = DataLogger(*args, **kwargs)
+        return log
+
+    def test_basic_plot(self):
+        datalog = self.create_test_instance()
+        datalog.plot_add("x1", "y1", axes=(0, 0), title="Axes 1")
+        datalog.plot_add("x1", "y2", axes=(1, 0), title="Axes 1")
+        datalog.plot_add("x1", "y2", axes=(0, 1), title="Axes 1")
+
+        for p2 in range(0, 3):
+            for p1 in range(0, 10):
+                datalog["x1"] = p1
+                datalog["y1"] = (p1 + p2) ** 2
+                datalog["y2"] = 1 / (1 + (p1 + p2) ** 2)
+                datalog.next_record()
+                self._logger.info("Update Plot")
+                datalog.plot_update()
+                datalog.plot_pause()
+
+            self._logger.info("Next Group")
+            datalog.next_group()
+
+        # datalog.plot_close()
 
 
 if __name__ == "__main__":

@@ -12,8 +12,10 @@ from collections import OrderedDict
 from datetime import datetime
 from itertools import product
 import logging
+from os import environ
 
-from matplotlib.pyplot import plot
+import matplotlib
+import matplotlib.pyplot as plt
 import numpy as np
 from scipy.stats import linregress
 import pandas as pd
@@ -24,7 +26,9 @@ class DataLogger(object):
     classdocs
     """
 
-    def __init__(self, logfile=None, logfile_format="csv", autosave=False, timestamp=True):
+    def __init__(
+        self, logfile=None, logfile_format="csv", autosave=False, timestamp=True
+    ):
         """
         Constructor
         """
@@ -46,8 +50,12 @@ class DataLogger(object):
 
         self._group_num = 0
         self._group_start = 0
+        self._group_indexes = [0]
 
         self._column_order = []
+
+        self._plots = []
+        self._plot_window_drawn = False
 
         # self._value_missing = float("nan")
         self._value_missing = None
@@ -60,6 +68,7 @@ class DataLogger(object):
             raise (KeyError("Cannot add new keys once logfile has been started"))
 
         self._record_current[key] = val
+        self._record_started = True
 
     def last(self, key):
         return self._data[key][-1]
@@ -75,9 +84,29 @@ class DataLogger(object):
 
         return v
 
+    def get_group(self, index, key):
+        """ Returns list of values for key in requested group
+        
+        index: 0 indicates current group, -1 indicates last group, etc.
+        """
+
+        # Need to subtract one from index to correclty align with self._group_indexes
+        index -= 1
+
+        record_start = self._group_indexes[index]
+
+        if index == -1:
+            record_stop = -1
+        else:
+            record_stop = self._group_indexes[index + 1]
+
+        return self._data[key][record_start:record_stop]
+
     def trend(self, key, pts, includecurrent=False):
         # Get all the data in the current group
-        v = self.get_data(key, slice(self._group_start, None), includecurrent=includecurrent)
+        v = self.get_data(
+            key, slice(self._group_start, None), includecurrent=includecurrent
+        )
 
         if len(v) < pts:
             pts = len(v)
@@ -90,6 +119,12 @@ class DataLogger(object):
         return result[0]
 
     def next_record(self):
+        if not self._record_started:
+            self._logger.warning(
+                "Attenpt to advance record before adding data to record"
+            )
+            return
+
         if self._enable_timestamp:
             self._record_current["tStart"] = str(self._record_start_time)
             self._record_current["tEnd"] = str(datetime.now())
@@ -111,14 +146,24 @@ class DataLogger(object):
 
         for key in self._record_current.keys():
             self._record_current[key] = None
+        self._record_started = False
         self._record_num += 1
         self._num_records += 1
         self._record_start_time = datetime.now()
 
     def next_group(self):
-        """ Creates new grouping with current record as first entry in new group """
+        """ Creates new grouping """
+        if self._record_started:
+            self._logger.warning("next_group() called with non-empty current record")
+            self.next_record()
+
+        if self._group_start == self._record_num:
+            # next_group called without adding any data
+            pass
+
         self._group_num += 1
         self._group_start = self._record_num
+        self._group_indexes.append(self._record_num)
 
     def set_order(self, order):
         self._column_order = ["index"] + order
@@ -171,15 +216,74 @@ class DataLogger(object):
             raise (FileNotFoundError("No output filename provided"))
 
         if format == "csv":
-            self.to_frame().to_csv(filename)
+            self.to_frame().to_csv(filename, na_rep="nan")
         elif format == "hdf":
             self.to_frame().to_hdf(filename, name)
 
-    def plot(self, x=None, y=None, **kwargs):
+    def plot_add(self, x, y, axes=1, title="New Plot", **kwargs):
+        plotdef = {"axes": axes, "x": x, "y": y, "title": title, **kwargs}
+        self._plots.append(plotdef)
+        self._logger.debug("Added plot definition: %s", str(self._plots[-1]))
+
+    def plot_update(self):
+        if not self._plot_window_drawn:
+            # Initialize matplotlib
+            in_spyder = False
+            if "SPY_PYTHONPATH" in environ:
+                self._logger.debug("Application running from within Spyder")
+                in_spyder = True
+                # %matplotlib auto
+            else:
+                self._logger.debug("Configuring matplotlibfor QT windows")
+                matplotlib.use("qtagg")
+                plt.ion()
+
+            # Create figure
+            self._fig, self._ax = plt.subplots(2, 2, sharex=True)
+
+            for ax in self._ax.ravel():
+                ax.set_autoscale_on(True)
+
+            self._plot_group_last = None
+
+        for plotdef in self._plots:
+            # Access dictionary keys by popping them as needed.  That asllows us
+            # pass all the remaining keys to the plot command as **kwargs
+            plotdef_copy = plotdef.copy()  # Create copy so we don't modify original
+
+            axes_idx = plotdef_copy.pop("axes")
+            title = plotdef_copy.pop("title")
+
+            key_x = plotdef_copy.pop("x")
+            key_y = plotdef_copy.pop("y")
+
+            data_x = self.get_group(0, key_x)
+            data_y = self.get_group(0, key_y)
+
+            ax = self._ax[axes_idx]
+            # if not self._plot_window_drawn:
+            if self._plot_group_last != self._group_num:
+                ax.plot(
+                    data_x, data_y, label=key_y, **plotdef_copy,
+                )
+            else:
+                ax.lines[-1].set_data(data_x, data_y)
+                ax.relim()
+                ax.autoscale_view(True, True, True)
+
+        self._plot_group_last = self._group_num
+        self._plot_window_drawn = True
+
+    def plot_pause(self, delay=0.05):
+        """ Calls matplotlib.pyplot.pause to allow QT windows to update and receive
+        GUI events """
+        plt.pause(delay)
+
+    def plot_single(self, x=None, y=None, **kwargs):
         if x is None:
-            return plot(self._data[y], **kwargs)
+            return plt.plot(self._data[y], **kwargs)
         else:
-            return plot(self._data[x], self._data[y], **kwargs)
+            return plt.plot(self._data[x], self._data[y], **kwargs)
 
 
 class ParameterSweep(object):
@@ -275,7 +379,9 @@ class ParameterSweep(object):
 
     def compute(self):
         self.reset()
-        self._parameter_list = list(product(*[self._parameters[k] for k in self._parameter_order]))
+        self._parameter_list = list(
+            product(*[self._parameters[k] for k in self._parameter_order])
+        )
         self._length = len(self._parameter_list)
         self._list_computed = True
 
@@ -301,7 +407,9 @@ class ParameterSweep(object):
         self._index_last = self._index
         i0 = self._index
         v = self._parameter_list[self._index][:-1]
-        while (self._index < self._length) and (v == self._parameter_list[self._index][:-1]):
+        while (self._index < self._length) and (
+            v == self._parameter_list[self._index][:-1]
+        ):
             self.next()
         i1 = self._index
         print("Advanced from {:d} to {:d}".format(i0, i1))
