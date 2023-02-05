@@ -248,24 +248,6 @@ class PowerMeterRohdeNRP(PowerMeter):
 
     mapping_auto_type = (
         ("1", "resolution", "RESolution"),
-    
-    def map_value(self, input, direction, mapping):
-        if direction == "from":
-            d = 0
-        elif direction == "to":
-            d = 1
-        else:
-            raise ValueError("Invalid direction")
-        
-        try:
-            keys = [ x[d] for x in mapping ]
-            idx = keys.index(input)
-            return mapping[idx][d+1]
-        except ValueError:
-            # raise ValueError(f"Error with map_value(): {input} not in mapping table")
-            self.logger.warning(f"map_from_instrument() input of {input} not in mapping table")
-            return input
-                
         ("2", "ns_ratio", "NSRatio"),
     )
 

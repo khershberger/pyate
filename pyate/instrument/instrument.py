@@ -246,3 +246,50 @@ class Instrument:
         if channel is not None and not isinstance(channel, int):
             raise TypeError("channel must be an int or None")
         self._channel_default = channel
+
+    def map_value(self, input, direction, mapping):
+        """
+        Performes value lookups from mapping tables
+
+        Parameters
+        ----------
+        input : string
+            Value to lookup
+        
+        direction : string
+            Which direction to map:
+            "from": input is from instrument, output is to Python
+            "to": input is from Python, output is to instrument
+
+        mapping table is a tuple of tuples.
+            (
+                ("text_from_instrument", "python_driver_text", "text_to_instrument"),
+                ("text_from_instrument", "python_driver_text", "text_to_instrument"),
+            )
+
+        Raises
+        ------
+        ValueError
+
+        Returns
+        -------
+        None.
+
+        """
+        if direction == "from":
+            d = 0
+        elif direction == "to":
+            d = 1
+        else:
+            raise ValueError("Invalid direction")
+
+        try:
+            keys = [x[d] for x in mapping]
+            idx = keys.index(input)
+            return mapping[idx][d + 1]
+        except ValueError:
+            # raise ValueError(f"Error with map_value(): {input} not in mapping table")
+            self.logger.warning(
+                f"map_from_instrument() input of {input} not in mapping table"
+            )
+            return input
