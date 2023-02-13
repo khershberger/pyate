@@ -261,6 +261,16 @@ class PowerMeterRohdeNRP(PowerMeter):
     # def read(self, retries=3):
     #     return self.res.visalib.read(self.res.session, 1024)[0].decode()
 
+    def check_error(self):
+        return not bool(int(self.query("SYST:ERR?")))
+
+    def wait_for_completion(self):
+        for k in range(20):
+            status = int(self.query("STAT:OPER:COND?"))
+            if status == 0:
+                break
+            time.sleep(0.05)
+
     def calibration_zero_sensor(self):
         self.write("CAL:ZERO:AUTO ONCE")
 
@@ -278,19 +288,23 @@ class PowerMeterRohdeNRP(PowerMeter):
         self.write("SENSe:AVERage:COUNt:AUTO:TYPE RES")
         self.write(f"SENS:AVER:COUN:AUTO:RES {resolution}")
 
+    def w_to_dbm(self, power_watts):
+        # Cap value at -174 dBm as the sensor has a habit of returning negative watt readings
+        # with no signal present
+        result = max(result, 3.9811e-21)
+        return 10 * log10(result) + 30
+
     def measure_power(self, resolution=None):
+        self.wait_for_completion()
         if resolution is not None:
             self.set_resolution(resolution)
 
+        self.wait_for_completion()
         self.write("INIT:IMM")
         result = self.query("FETCH?")
         result = float(result.split(",")[0])
 
-        # Cap value at -174 dBm as the sensor has a habit of returning negative watt readings
-        # with no signal present
-        result = max(result, 3.9811e-21)
-
-        return 10 * log10(result) + 30
+        return self.w_to_dbm(result)
 
     def get_settings(self, channel: int = None):
         channel = self.get_default_channel(default=channel)
@@ -370,6 +384,8 @@ class PowerMeterRohdeNRP(PowerMeter):
             result["dutycycle"] = False
         else:
             result["dutycycle"] = float(self.query("SENS:CORR:DCYC?"))
+
+        result["min_power"] = self.w_to_dbm(float(self.query("SYSTem:MINPower?")))
         return result
 
 
