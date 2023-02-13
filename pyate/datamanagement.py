@@ -225,6 +225,10 @@ class DataLogger(object):
         self._plots.append(plotdef)
         self._logger.debug("Added plot definition: %s", str(self._plots[-1]))
 
+    def plot_hold(self, *args, **kwargs):
+        plt.ioff()
+        plt.show(*args, **kwargs)
+
     def plot_update(self):
         if not self._plot_window_drawn:
             # Initialize matplotlib
@@ -260,16 +264,24 @@ class DataLogger(object):
             data_x = self.get_group(0, key_x)
             data_y = self.get_group(0, key_y)
 
-            ax = self._ax[axes_idx]
+            if isinstance(axes_idx, int):
+                ax = self._ax.ravel()[axes_idx]
+            else:
+                ax = self._ax[axes_idx]
             # if not self._plot_window_drawn:
             if self._plot_group_last != self._group_num:
                 ax.plot(
                     data_x, data_y, label=key_y, **plotdef_copy,
                 )
+                ax.set_title(title)
+                ax.legend()
+                ax.grid(True)
             else:
                 ax.lines[-1].set_data(data_x, data_y)
                 ax.relim()
                 ax.autoscale_view(True, True, True)
+
+        self._fig.tight_layout()
 
         self._plot_group_last = self._group_num
         self._plot_window_drawn = True

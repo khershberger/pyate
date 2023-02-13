@@ -130,9 +130,9 @@ class TestDataLoggerPlot(unittest.TestCase):
 
     def test_basic_plot(self):
         datalog = self.create_test_instance()
-        datalog.plot_add("x1", "y1", axes=(0, 0), title="Axes 1")
-        datalog.plot_add("x1", "y2", axes=(1, 0), title="Axes 1")
-        datalog.plot_add("x1", "y2", axes=(0, 1), title="Axes 1")
+        datalog.plot_add("x1", "y1", axes=(0, 0), title="Axes 0")
+        datalog.plot_add("x1", "y2", axes=1, title="Axes 1")
+        datalog.plot_add("x1", "y2", axes=2, title="Axes 2")
 
         for p2 in range(0, 3):
             for p1 in range(0, 10):
@@ -148,6 +148,7 @@ class TestDataLoggerPlot(unittest.TestCase):
             datalog.next_group()
 
         # datalog.plot_close()
+        datalog.plot_hold()
 
 
 if __name__ == "__main__":
