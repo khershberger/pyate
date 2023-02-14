@@ -291,7 +291,7 @@ class PowerMeterRohdeNRP(PowerMeter):
     def w_to_dbm(self, power_watts):
         # Cap value at -174 dBm as the sensor has a habit of returning negative watt readings
         # with no signal present
-        result = max(result, 3.9811e-21)
+        result = max(power_watts, 3.9811e-21)
         return 10 * log10(result) + 30
 
     def measure_power(self, resolution=None):
