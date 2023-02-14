@@ -318,6 +318,7 @@ class PowerMeterRohdeNRP(PowerMeter):
         result["trigger_source"] = self.map_value(
             self.query("TRIG:SOUR?"), "from", self.mapping_trigger_source
         )
+        result["trigger_level"] = self.w_to_dbm(float(self.query("TRIG:LEV?")))
         result["sample_rate"] = self.map_value(
             self.query("SENSe:SAMPling?"), "from", self.mapping_sampling
         )
@@ -387,6 +388,15 @@ class PowerMeterRohdeNRP(PowerMeter):
 
         result["min_power"] = self.w_to_dbm(float(self.query("SYSTem:MINPower?")))
         return result
+
+    def set_settings(self, channel: int = None, function=None):
+        channel = self.get_default_channel(default=channel)
+        if function is not None:
+            self.write(
+                'SENSe:FUNCtion "{:s}"'.format(
+                    self.map_value(function, "to", self.mapping_function)
+                )
+            )
 
 
 @Instrument.register_models(["8542C"])
