@@ -25,7 +25,7 @@ from math import log10
 import time
 
 from pyate.instrument import Instrument
-from pyate.instrument.error import InstrumentNothingToRead
+from pyate.instrument.error import InstrumentNothingToRead, InstrumentIOError
 from pyate.instrument.instrument import pyvisaExceptionHandler
 
 
@@ -261,15 +261,18 @@ class PowerMeterRohdeNRP(PowerMeter):
     # def read(self, retries=3):
     #     return self.res.visalib.read(self.res.session, 1024)[0].decode()
 
-    def check_error(self):
-        return not bool(int(self.query("SYST:ERR?")))
+    # check_error and wait_for_completrion were examples in a R&S application note
+    # But they do not work with the ZRP sensors I have access to
+    #
+    # def check_error(self):
+    #     return not bool(int(self.query("SYST:ERR?")))
 
-    def wait_for_completion(self):
-        for k in range(20):
-            status = int(self.query("STAT:OPER:COND?"))
-            if status == 0:
-                break
-            time.sleep(0.05)
+    # def wait_for_completion(self):
+    #     for k in range(20):
+    #         status = int(self.query("STAT:OPER:COND?"))
+    #         if status == 0:
+    #             break
+    #         time.sleep(0.05)
 
     def calibration_zero_sensor(self):
         self.write("CAL:ZERO:AUTO ONCE")
@@ -295,16 +298,48 @@ class PowerMeterRohdeNRP(PowerMeter):
         return 10 * log10(result) + 30
 
     def measure_power(self, resolution=None):
-        self.wait_for_completion()
+        # self.wait_for_completion()
         if resolution is not None:
             self.set_resolution(resolution)
 
-        self.wait_for_completion()
-        self.write("INIT:IMM")
-        result = self.query("FETCH?")
-        result = float(result.split(",")[0])
+        # self.wait_for_completion()
+        result_dbm = None
+        iter = 0
+        while iter < 3 and result_dbm is None:
+            iter += 1
+            try:
+                step = 1
+                retval_write = self.write("INIT:IMM")
+                step = 2
+                result_text = self.query("FETCH?", retries=1)
+                step = 3
+            except InstrumentIOError:
+                self.logger.warning("Instrument timeout occured at step %d", step)
+                time.sleep(0.2)
+                continue
 
-        return self.w_to_dbm(result)
+            parts = result_text.split(",")
+            if len(parts) != 3:
+                self.logger.warning(
+                    "Malformed reply during FETCH operation: %s", result_text
+                )
+                continue
+
+            try:
+                _ = int(parts[0])
+                self.logger.warning(
+                    "Error code returned during FETCH? operation: %s", parts[0]
+                )
+                continue
+            except ValueError:
+                pass
+
+            result_dbm = self.w_to_dbm(float(parts[0]))
+
+        if result_dbm is None:
+            self.logger.error("Unable go get power readng")
+            raise Exception("Unable to get valide power measurement from sensor")
+        return result_dbm
 
     def get_settings(self, channel: int = None):
         channel = self.get_default_channel(default=channel)
