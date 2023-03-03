@@ -297,6 +297,25 @@ class DataLogger(object):
         else:
             return plt.plot(self._data[x], self._data[y], **kwargs)
 
+    # Check to see if data file exists. If so, increment
+    def next_available(filename):
+        if not os.exists(filename):
+            return filename
+
+        parts1 = filename.split("_")
+        parts2 = parts1[-1].split(".")
+        try:
+            num = int(parts2[0])
+            num += 1
+            parts2[0] = f"{num:02d}"
+        except ValueError:
+            parts2[0] += f"_01"
+
+        parts1[-1] = ".".join(parts2)
+        new_filename = "_".join(parts1)
+
+        return next_available(new_filename)
+
 
 class ParameterSweep(object):
     """
