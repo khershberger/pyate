@@ -261,18 +261,19 @@ class PowerMeterRohdeNRP(PowerMeter):
     # def read(self, retries=3):
     #     return self.res.visalib.read(self.res.session, 1024)[0].decode()
 
-    # check_error and wait_for_completrion were examples in a R&S application note
-    # But they do not work with the ZRP sensors I have access to
-    #
-    # def check_error(self):
-    #     return not bool(int(self.query("SYST:ERR?")))
+    def check_error(self):
+        return bool(self.resource.read_stb() & (1 << 2))
 
-    # def wait_for_completion(self):
-    #     for k in range(20):
-    #         status = int(self.query("STAT:OPER:COND?"))
-    #         if status == 0:
-    #             break
-    #         time.sleep(0.05)
+    def check_busy(self):
+        return bool(self.resource.read_stb() & (1 << 7))
+
+    def wait_for_completion(self):
+        for k in range(20):
+            if not self.check_busy():
+                self.logger.debug("Waited %d iterations", k)
+                break
+            time.sleep(0.05)
+        self.logger.debug("Timeout waiting for completion")
 
     def calibration_zero_sensor(self):
         self.write("CAL:ZERO:AUTO ONCE")
@@ -296,6 +297,9 @@ class PowerMeterRohdeNRP(PowerMeter):
         # with no signal present
         result = max(power_watts, 3.9811e-21)
         return 10 * log10(result) + 30
+
+    def get_stb_in_binary(self):
+        return f"{self.resource.stb:08b}"
 
     def measure_power(self, resolution=None):
         # self.wait_for_completion()
