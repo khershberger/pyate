@@ -21,9 +21,11 @@ while(not (stat & 1)):
 
 """
 
+
 from math import log10
 import time
-
+from pyvisa.errors import VisaIOError
+from pyvisa.constants import StatusCode
 from pyate.instrument import Instrument
 from pyate.instrument.error import InstrumentNothingToRead, InstrumentIOError
 from pyate.instrument.instrument import pyvisaExceptionHandler
@@ -43,7 +45,7 @@ class PowerMeter(Instrument):
         self.set_default_channel(channel)
 
         # increase timeout
-        ##### WARNING!!!  Apparently pyfisa timeout is in milliseconds
+        # WARNING!!!  Apparently pyfisa timeout is in milliseconds
         # Prologix is in seconds
         # self.res.timeout = 500.0          # This is due to periodically long read times
         self.delay = (
@@ -211,7 +213,7 @@ class PowerMeterRohdeNRP(PowerMeter):
         self.driver_name = "PowerMeterRohdeNRP"
 
         # increase timeout
-        ##### WARNING!!!  Apparently pyfisa timeout is in milliseconds
+        # WARNING!!!  Apparently pyfisa timeout is in milliseconds
         # Prologix is in seconds
         # self.res.timeout = 500.0          # This is due to periodically long read times
         self.delay = (
@@ -306,26 +308,42 @@ class PowerMeterRohdeNRP(PowerMeter):
         if resolution is not None:
             self.set_resolution(resolution)
 
-        # self.wait_for_completion()
         result_dbm = None
         iter = 0
         while iter < 3 and result_dbm is None:
             iter += 1
+            self.wait_for_completion()
             try:
-                step = 1
                 retval_write = self.write("INIT:IMM")
-                step = 2
+            except VisaIOError as e:
+                if e.error_code == StatusCode.error_system_error:
+                    self.logger.warning(
+                        "Instrument timeout occured during INIT:IMM operation (stb=%s)",
+                        self.get_stb_in_binary(),
+                    )
+                    raise Exception(
+                        "Exception occurred during INIT:IMM.  Maybe no burst trigger found?"
+                    )
+                else:
+                    raise
+
+            self.wait_for_completion()
+            try:
                 result_text = self.query("FETCH?", retries=1)
-                step = 3
             except InstrumentIOError:
-                self.logger.warning("Instrument timeout occured at step %d", step)
+                self.logger.warning(
+                    "Instrument timeout occured during fetch operation (stb=%s)",
+                    self.get_stb_in_binary(),
+                )
                 time.sleep(0.2)
                 continue
 
             parts = result_text.split(",")
             if len(parts) != 3:
                 self.logger.warning(
-                    "Malformed reply during FETCH operation: %s", result_text
+                    "Malformed reply during FETCH operation: %s (stb=%s)",
+                    result_text,
+                    self.get_stb_in_binary(),
                 )
                 continue
 
