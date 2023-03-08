@@ -453,7 +453,7 @@ class PowerMeterRohdeNRP(PowerMeter):
         result["min_power"] = self.w_to_dbm(float(self.query("SYSTem:MINPower?")))
         return result
 
-    def set_settings(self, channel: int = None, function=None):
+    def set_settings(self, channel: int = None, function=None, continuous=None):
         channel = self.get_default_channel(default=channel)
         if function is not None:
             self.write(
@@ -461,6 +461,9 @@ class PowerMeterRohdeNRP(PowerMeter):
                     self.map_value(function, "to", self.mapping_function)
                 )
             )
+        if continuous is not None:
+            state = self.map_value(continuous, "to", self.mapping_on_off)
+            self.write(f"INIT:CONT {state}")
 
 
 @Instrument.register_models(["8542C"])
