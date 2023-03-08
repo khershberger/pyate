@@ -21,7 +21,7 @@ while(not (stat & 1)):
 
 """
 
-
+import logging
 from math import log10
 import time
 from pyvisa.errors import VisaIOError
@@ -211,6 +211,7 @@ class PowerMeterRohdeNRP(PowerMeter):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.driver_name = "PowerMeterRohdeNRP"
+        self.logger = logging.getLogger(__name__ + "." + __class__.__name__)
 
         # increase timeout
         # WARNING!!!  Apparently pyfisa timeout is in milliseconds
@@ -264,18 +265,19 @@ class PowerMeterRohdeNRP(PowerMeter):
     #     return self.res.visalib.read(self.res.session, 1024)[0].decode()
 
     def check_error(self):
-        return bool(self.resource.read_stb() & (1 << 2))
+        return bool(self.read_stb() & (1 << 2))
 
     def check_busy(self):
-        return bool(self.resource.read_stb() & (1 << 7))
+        return bool(self.read_stb() & (1 << 7))
 
     def wait_for_completion(self):
         for k in range(20):
             if not self.check_busy():
-                self.logger.debug("Waited %d iterations", k)
-                break
+                if k > 0:
+                    self.logger.debug("wait_for_completion(): Waited %d iterations", k)
+                return
             time.sleep(0.05)
-        self.logger.debug("Timeout waiting for completion")
+        self.logger.debug("wait_for_completion(): Timeout waiting for completion")
 
     def calibration_zero_sensor(self):
         self.write("CAL:ZERO:AUTO ONCE")
@@ -321,13 +323,18 @@ class PowerMeterRohdeNRP(PowerMeter):
                         "Instrument timeout occured during INIT:IMM operation (stb=%s)",
                         self.get_stb_in_binary(),
                     )
-                    raise Exception(
-                        "Exception occurred during INIT:IMM.  Maybe no burst trigger found?"
-                    )
+                    # Typically happens if a trigger event doesn't occur
+                    # For now return noise floor
+                    result_dbm = self.w_to_dbm(0)
+                    continue
+
                 else:
                     raise
 
-            self.wait_for_completion()
+            # This isn't needed as FETCH will block until measurement is ready            
+            # self.logger.debug("Checking STB")
+            # self.wait_for_completion()
+            
             try:
                 result_text = self.query("FETCH?", retries=1)
             except InstrumentIOError:
