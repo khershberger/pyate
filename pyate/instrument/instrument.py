@@ -144,7 +144,12 @@ class Instrument:
         self.resource.clear()
 
     @pyvisaExceptionHandler
+    def read_stb(self):
+        return self.resource.read_stb()
+
+    @pyvisaExceptionHandler
     def write(self, command, delay=0.0, retries=3):
+        self.logger.log(8, command)
         result = self.resource.write(command)
         time.sleep(delay)
         return result
