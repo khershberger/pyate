@@ -21,11 +21,13 @@ while(not (stat & 1)):
 
 """
 
+import logging
 from math import log10
 import time
-
+from pyvisa.errors import VisaIOError
+from pyvisa.constants import StatusCode
 from pyate.instrument import Instrument
-from pyate.instrument.error import InstrumentNothingToRead
+from pyate.instrument.error import InstrumentNothingToRead, InstrumentIOError
 from pyate.instrument.instrument import pyvisaExceptionHandler
 
 
@@ -43,7 +45,7 @@ class PowerMeter(Instrument):
         self.set_default_channel(channel)
 
         # increase timeout
-        ##### WARNING!!!  Apparently pyfisa timeout is in milliseconds
+        # WARNING!!!  Apparently pyfisa timeout is in milliseconds
         # Prologix is in seconds
         # self.res.timeout = 500.0          # This is due to periodically long read times
         self.delay = (
@@ -209,9 +211,10 @@ class PowerMeterRohdeNRP(PowerMeter):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.driver_name = "PowerMeterRohdeNRP"
+        self.logger = logging.getLogger(__name__ + "." + __class__.__name__)
 
         # increase timeout
-        ##### WARNING!!!  Apparently pyfisa timeout is in milliseconds
+        # WARNING!!!  Apparently pyfisa timeout is in milliseconds
         # Prologix is in seconds
         # self.res.timeout = 500.0          # This is due to periodically long read times
         self.delay = (
@@ -261,6 +264,21 @@ class PowerMeterRohdeNRP(PowerMeter):
     # def read(self, retries=3):
     #     return self.res.visalib.read(self.res.session, 1024)[0].decode()
 
+    def check_error(self):
+        return bool(self.read_stb() & (1 << 2))
+
+    def check_busy(self):
+        return bool(self.read_stb() & (1 << 7))
+
+    def wait_for_completion(self):
+        for k in range(20):
+            if not self.check_busy():
+                if k > 0:
+                    self.logger.debug("wait_for_completion(): Waited %d iterations", k)
+                return
+            time.sleep(0.05)
+        self.logger.debug("wait_for_completion(): Timeout waiting for completion")
+
     def calibration_zero_sensor(self):
         self.write("CAL:ZERO:AUTO ONCE")
 
@@ -278,19 +296,79 @@ class PowerMeterRohdeNRP(PowerMeter):
         self.write("SENSe:AVERage:COUNt:AUTO:TYPE RES")
         self.write(f"SENS:AVER:COUN:AUTO:RES {resolution}")
 
+    def w_to_dbm(self, power_watts):
+        # Cap value at -174 dBm as the sensor has a habit of returning negative watt readings
+        # with no signal present
+        result = max(power_watts, 3.9811e-21)
+        return 10 * log10(result) + 30
+
+    def get_stb_in_binary(self):
+        return f"{self.resource.stb:08b}"
+
     def measure_power(self, resolution=None):
+        # self.wait_for_completion()
         if resolution is not None:
             self.set_resolution(resolution)
 
-        self.write("INIT:IMM")
-        result = self.query("FETCH?")
-        result = float(result.split(",")[0])
+        result_dbm = None
+        iter = 0
+        while iter < 3 and result_dbm is None:
+            iter += 1
+            self.wait_for_completion()
+            try:
+                retval_write = self.write("INIT:IMM")
+            except VisaIOError as e:
+                if e.error_code == StatusCode.error_system_error:
+                    self.logger.warning(
+                        "Instrument timeout occured during INIT:IMM operation (stb=%s)",
+                        self.get_stb_in_binary(),
+                    )
+                    # Typically happens if a trigger event doesn't occur
+                    # For now return noise floor
+                    result_dbm = self.w_to_dbm(0)
+                    continue
 
-        # Cap value at -174 dBm as the sensor has a habit of returning negative watt readings
-        # with no signal present
-        result = max(result, 3.9811e-21)
+                else:
+                    raise
 
-        return 10 * log10(result) + 30
+            # This isn't needed as FETCH will block until measurement is ready            
+            # self.logger.debug("Checking STB")
+            # self.wait_for_completion()
+            
+            try:
+                result_text = self.query("FETCH?", retries=1)
+            except InstrumentIOError:
+                self.logger.warning(
+                    "Instrument timeout occured during fetch operation (stb=%s)",
+                    self.get_stb_in_binary(),
+                )
+                time.sleep(0.2)
+                continue
+
+            parts = result_text.split(",")
+            if len(parts) != 3:
+                self.logger.warning(
+                    "Malformed reply during FETCH operation: %s (stb=%s)",
+                    result_text,
+                    self.get_stb_in_binary(),
+                )
+                continue
+
+            try:
+                _ = int(parts[0])
+                self.logger.warning(
+                    "Error code returned during FETCH? operation: %s", parts[0]
+                )
+                continue
+            except ValueError:
+                pass
+
+            result_dbm = self.w_to_dbm(float(parts[0]))
+
+        if result_dbm is None:
+            self.logger.error("Unable go get power readng")
+            raise Exception("Unable to get valide power measurement from sensor")
+        return result_dbm
 
     def get_settings(self, channel: int = None):
         channel = self.get_default_channel(default=channel)
@@ -304,6 +382,7 @@ class PowerMeterRohdeNRP(PowerMeter):
         result["trigger_source"] = self.map_value(
             self.query("TRIG:SOUR?"), "from", self.mapping_trigger_source
         )
+        result["trigger_level"] = self.w_to_dbm(float(self.query("TRIG:LEV?")))
         result["sample_rate"] = self.map_value(
             self.query("SENSe:SAMPling?"), "from", self.mapping_sampling
         )
@@ -370,7 +449,21 @@ class PowerMeterRohdeNRP(PowerMeter):
             result["dutycycle"] = False
         else:
             result["dutycycle"] = float(self.query("SENS:CORR:DCYC?"))
+
+        result["min_power"] = self.w_to_dbm(float(self.query("SYSTem:MINPower?")))
         return result
+
+    def set_settings(self, channel: int = None, function=None, continuous=None):
+        channel = self.get_default_channel(default=channel)
+        if function is not None:
+            self.write(
+                'SENSe:FUNCtion "{:s}"'.format(
+                    self.map_value(function, "to", self.mapping_function)
+                )
+            )
+        if continuous is not None:
+            state = self.map_value(continuous, "to", self.mapping_on_off)
+            self.write(f"INIT:CONT {state}")
 
 
 @Instrument.register_models(["8542C"])
