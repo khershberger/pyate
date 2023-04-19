@@ -162,7 +162,7 @@ class PowerSupplyKeysight(PowerSupply):
 
         statestr = "ON" if state else "OFF"
 
-        result = self.write(f":OUTP {statestr}")
+        self.write(f":OUTP {statestr}")
         return result
 
     def get_voltage(self, channel: int = None):
@@ -182,7 +182,9 @@ class PowerSupplyKeysight(PowerSupply):
         result = self.query("VOLT:PROT?")
         return result
 
-    def set_over_voltage_protection(self, value: float, channel: int = None, readback=False):
+    def set_over_voltage_protection(
+        self, value: float, channel: int = None, readback=False
+    ):
         self._set_active_channel(channel)
         self.write(f"VOLT:PROT {value}")
 
@@ -231,3 +233,70 @@ class PowerSupplyKeysight(PowerSupply):
         result["ov"] = b_status & 0b1000000000
 
         return result
+
+
+@Instrument.register_models(["MODEL 2400"])
+class PowerSupplyKeithley2400(PowerSupply):
+    """
+    Instrument driver for Keithley 2400 SMU
+    """
+
+    def __init__(self, *args, channel=None, **kwargs):
+        """
+        Constructor 
+
+        Parameters
+        ----------
+        channel : int, optional
+            Default channel to use for instrument
+
+        Returns
+        -------
+        None.
+
+        """
+        super().__init__(*args, channel=channel, **kwargs)
+        self.driver_name = "PowerSupplyKeithley2400"
+
+    def get_output_state(self, channel: int = None):
+        return self.get_basic_parameter(":OUTP:STAT", dtype=bool)
+
+    def set_output_state(self, state: bool, channel: int = None):
+        self.check_parameter("state", state, bool, None)
+        return self.set_basic_parameter(":OUTP:STAT", dtype=bool)
+
+    def get_voltage(self, channel: int = None):
+        return self.get_basic_parameter(":SOUR:VOLT", dtype=float)
+
+    def set_voltage(self, voltage: float, channel: int = None, readback=False):
+        self.check_parameter("voltage", voltage, float, None)
+        return self.set_basic_parameter(":SOUR:VOLT", voltage, dtype=float)
+
+    def get_over_voltage_protection(self, channel: int = None):
+        return self.get_basic_parameter(":SOUR:VOLT:PROT", dtype=float)
+
+    def set_over_voltage_protection(
+        self, voltage: float, channel: int = None, readback=False
+    ):
+        self.check_parameter("voltage", voltage, float, None)
+        return self.set_basic_parameter(":SOUR:VOLT:PROT", voltage, dtype=float)
+
+    def get_current(self, channel: int = None):
+        return self.get_basic_parameter(":SOUR:CURR", dtype=float)
+
+    def set_current(self, current: float, channel: int = None, readback=False):
+        self.check_parameter("Current", current, float, None)
+        return self.set_basic_parameter(":SOUR:CURR", current, dtype=float)
+
+    def measure_voltage(self, channel: int = None):
+        return self.get_basic_parameter(":MEAS:VOLT", dtype=float)
+
+    def measure_current(self, channel: int = None):
+        return self.get_basic_parameter(":MEAS:CURR", dtype=float)
+
+    def get_beep_state(self, channel: int = None):
+        return self.get_basic_parameter(":SYST:BEEP:STAT", dtype=bool)
+
+    def set_beep_state(self, state, channel: int = None):
+        self.check_parameter("state", state, bool, None)
+        return self.set_basic_parameter(":SYST:BEEP:STAT", state, dtype=bool)
