@@ -163,7 +163,6 @@ class PowerSupplyKeysight(PowerSupply):
         statestr = "ON" if state else "OFF"
 
         self.write(f":OUTP {statestr}")
-        return result
 
     def get_voltage(self, channel: int = None):
         self._set_active_channel(channel)
@@ -235,7 +234,7 @@ class PowerSupplyKeysight(PowerSupply):
         return result
 
 
-@Instrument.register_models(["MODEL 2400"])
+@Instrument.register_models(["MODEL 24[0-9]0"])
 class PowerSupplyKeithley2400(PowerSupply):
     """
     Instrument driver for Keithley 2400 SMU
@@ -263,14 +262,26 @@ class PowerSupplyKeithley2400(PowerSupply):
 
     def set_output_state(self, state: bool, channel: int = None):
         self.check_parameter("state", state, bool, None)
-        return self.set_basic_parameter(":OUTP:STAT", dtype=bool)
+        return self.set_basic_parameter(":OUTP:STAT", state, dtype=bool)
 
     def get_voltage(self, channel: int = None):
         return self.get_basic_parameter(":SOUR:VOLT", dtype=float)
 
-    def set_voltage(self, voltage: float, channel: int = None, readback=False):
+    def set_voltage(
+        self, voltage: float, channel: int = None, current_limit=None, readback=False
+    ):
         self.check_parameter("voltage", voltage, float, None)
-        return self.set_basic_parameter(":SOUR:VOLT", voltage, dtype=float)
+
+        self.write(":SOUR:FUNC VOLT")
+        # :SOUR:VOLT:MODE FIXED
+        # :SOUR:VOLT:RANG 20
+        # :SOUR:VOLT:LEV 10
+        # :SENS:CURR:PROT 10E-3
+        result = self.set_basic_parameter(":SOUR:VOLT:LEV", voltage, dtype=float)
+
+        if current_limit is not None:
+            self.check_parameter("current_limit", current_limit, float, None)
+            self.set_basic_parameter(":SENS:CURR:PROT", current_limit, dtype=float)
 
     def get_over_voltage_protection(self, channel: int = None):
         return self.get_basic_parameter(":SOUR:VOLT:PROT", dtype=float)
@@ -286,13 +297,27 @@ class PowerSupplyKeithley2400(PowerSupply):
 
     def set_current(self, current: float, channel: int = None, readback=False):
         self.check_parameter("Current", current, float, None)
+        self.write(":SOUR:FUNC CURR")
         return self.set_basic_parameter(":SOUR:CURR", current, dtype=float)
 
+    def measure(self, channel: int = None):
+        self.write(":FORMat:ELEMents VOLT,CURR")
+        raw = self.query(":READ?")
+        return [float(x) for x in raw.split(",")]
+
     def measure_voltage(self, channel: int = None):
-        return self.get_basic_parameter(":MEAS:VOLT", dtype=float)
+        # self.write(":CONF:VOLT") # This does not seem to be the 'right' way
+
+        self.write(':SENS:FUNC "VOLT"')
+        self.write(":FORMat:ELEMents VOLT")
+        return self.get_basic_parameter(":READ", dtype=float)
 
     def measure_current(self, channel: int = None):
-        return self.get_basic_parameter(":MEAS:CURR", dtype=float)
+        # self.write(":CONF:CURR") # This does not seem to be the 'right' way
+
+        self.write(':SENS:FUNC "CURR"')
+        self.write(":FORMat:ELEMents CURR")
+        return self.get_basic_parameter(":READ", dtype=float)
 
     def get_beep_state(self, channel: int = None):
         return self.get_basic_parameter(":SYST:BEEP:STAT", dtype=bool)
