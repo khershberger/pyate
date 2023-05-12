@@ -271,7 +271,22 @@ class Instrument:
 
         """
 
-        return dtype(self.query(scpi_command + "?", retries=retries))
+        raw = self.query(scpi_command + "?", retries=retries)
+
+        if dtype == bool:
+            lookup = {
+                "0": False,
+                "false": False,
+                "f": False,
+                "1": True,
+                "true": True,
+                "t": True,
+            }
+            result = lookup[raw]
+        else:
+            result = dtype(raw)
+
+        return result
 
     def set_basic_parameter(
         self,
@@ -311,9 +326,14 @@ class Instrument:
 
         """
 
+        if isinstance(value, bool):
+            value = int(value)
+
         while retries >= 0:
             self.write(f"{scpi_command} {value}")
-            readback = self.get_parameter(scpi_command, channel=channel, dytpe=dtype)
+            readback = self.get_basic_parameter(
+                scpi_command, channel=channel, dtype=dtype
+            )
 
             if readback == value:
                 return True
