@@ -9,8 +9,6 @@ import sys
 from time import sleep
 import unittest
 
-print(sys.path)
-print(os.getcwd())
 from pyate import DataLogger
 
 # from pyate.datamanagement import DataLogger
