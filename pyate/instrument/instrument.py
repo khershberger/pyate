@@ -15,8 +15,8 @@ from pyate.instrument.error import InstrumentIOError
 
 
 def pyvisaExceptionHandler(fcn):
-    """This is a decorator to handle the excessive number of exceptions
-    that pyvisa raises for problems it really should hanldle on it's own"""
+    """ This is a decorator to handle the excessive number of exceptions
+    that pyvisa raises for problems it really should hanldle on it's own """
 
     def wrapper(self, *args, **kwargs):
         retries = kwargs.get("retries", 3)
@@ -26,31 +26,25 @@ def pyvisaExceptionHandler(fcn):
             except pyvisa.VisaIOError as e:
                 if e.error_code == pyvisa.errors.VI_ERROR_TMO:
                     self.logger.warning(
-                        "NI Timeout occured during Instrument.%s operation",
-                        fcn.__name__,
+                        "NI Timeout occured during Instrument.write() operation"
                     )
                 elif e.error_code == pyvisa.errors.VI_ERROR_CONN_LOST:
                     self.resource.open()
                 else:
                     raise e
             except pyvisa.errors.InvalidSession:
-                self.logger.warning(
-                    "InvalidSession error occured during Instrument.%s  Attempting to reopen",
-                    fcn.__name__,
-                )
+                self.logger.warning("InvalidSession error occured attempting to reopen")
                 self.resource.open()
             except ConnectionResetError as e:
                 self.logger.warning(
-                    "ConnectionResetError during Instrument.%s.  Closing & Reopening",
-                    fcn.__name__,
+                    "ConnectionResetError during Instrument.write().  Closing & Reopening"
                 )
                 self.resource.reset()
             except visawrapper.prologix.PrologixTimeout as e:
                 self.logger.warning(
-                    "Prologix Timeout occured during Instrument.%s operation",
-                    fcn.__name__,
+                    "Prologix Timeout occured during Instrument.write() operation"
                 )
-        raise InstrumentIOError("Instrument.%s Max retries exceeded", fcn.__name__)
+        raise InstrumentIOError("Instrument.write() Max retries exceeded")
 
     return wrapper
 
@@ -144,12 +138,7 @@ class Instrument:
         self.resource.clear()
 
     @pyvisaExceptionHandler
-    def read_stb(self):
-        return self.resource.read_stb()
-
-    @pyvisaExceptionHandler
     def write(self, command, delay=0.0, retries=3):
-        self.logger.log(8, command)
         result = self.resource.write(command)
         time.sleep(delay)
         return result
@@ -258,6 +247,108 @@ class Instrument:
             raise TypeError("channel must be an int or None")
         self._channel_default = channel
 
+    def get_basic_parameter(
+        self, scpi_command: str, channel: int = None, dtype=float, retries=3
+    ):
+        """
+        Reads back value from basic SCPI command
+
+        Parameters
+        ----------
+        scpi_command : string
+            SCPI command
+
+        dtype: type
+            Python type to return value as
+
+        Raises
+        ------
+        None
+
+        Returns
+        -------
+        Value read from instrument
+
+        """
+
+        raw = self.query(scpi_command + "?", retries=retries)
+
+        if dtype == bool:
+            lookup = {
+                "0": False,
+                "false": False,
+                "f": False,
+                "1": True,
+                "true": True,
+                "t": True,
+            }
+            result = lookup[raw]
+        else:
+            result = dtype(raw)
+
+        return result
+
+    def set_basic_parameter(
+        self,
+        scpi_command: str,
+        value,
+        channel: int = None,
+        dtype=float,
+        raise_exception=True,
+        retries=3,
+    ):
+        """
+        Sets value for basic SCPI command
+
+        Parameters
+        ----------
+        scpi_command : string
+            SCPI command
+        value : 
+            Value to send to instrument
+        channel : int (optional)
+            Channel to use (if applicable)
+        dtype : type
+            Python type to return value as
+        raise_exception : bool
+            Should an exception be raised if value read back from instrument
+            does not match set value
+        retrues : int
+            Number of times to try setting value if readback does not match
+
+        Raises
+        ------
+        Exception
+
+        Returns
+        -------
+        bool : Whether readback value matches set value
+
+        """
+
+        if isinstance(value, bool):
+            value = int(value)
+
+        while retries >= 0:
+            self.write(f"{scpi_command} {value}")
+            readback = self.get_basic_parameter(
+                scpi_command, channel=channel, dtype=dtype
+            )
+
+            if readback == value:
+                return True
+            else:
+                self.logger.warning(
+                    "Readback value does not match set value. Retrying..."
+                )
+
+            retries -= 1
+
+        self.logger.warning("Readback value does not match set value. Giving up.")
+        if raise_exception:
+            raise Exception("Readback value does not match set value")
+        return False
+
     def map_value(self, input, direction, mapping):
         """
         Performes value lookups from mapping tables
@@ -266,7 +357,7 @@ class Instrument:
         ----------
         input : string
             Value to lookup
-
+        
         direction : string
             Which direction to map:
             "from": input is from instrument, output is to Python
