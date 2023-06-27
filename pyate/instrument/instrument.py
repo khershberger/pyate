@@ -15,8 +15,8 @@ from pyate.instrument.error import InstrumentIOError
 
 
 def pyvisaExceptionHandler(fcn):
-    """ This is a decorator to handle the excessive number of exceptions
-    that pyvisa raises for problems it really should hanldle on it's own """
+    """This is a decorator to handle the excessive number of exceptions
+    that pyvisa raises for problems it really should hanldle on it's own"""
 
     def wrapper(self, *args, **kwargs):
         retries = kwargs.get("retries", 3)
@@ -26,25 +26,31 @@ def pyvisaExceptionHandler(fcn):
             except pyvisa.VisaIOError as e:
                 if e.error_code == pyvisa.errors.VI_ERROR_TMO:
                     self.logger.warning(
-                        "NI Timeout occured during Instrument.write() operation"
+                        "NI Timeout occured during Instrument.%s operation",
+                        fcn.__name__,
                     )
                 elif e.error_code == pyvisa.errors.VI_ERROR_CONN_LOST:
                     self.resource.open()
                 else:
                     raise e
             except pyvisa.errors.InvalidSession:
-                self.logger.warning("InvalidSession error occured attempting to reopen")
+                self.logger.warning(
+                    "InvalidSession error occured during Instrument.%s  Attempting to reopen",
+                    fcn.__name__,
+                )
                 self.resource.open()
             except ConnectionResetError as e:
                 self.logger.warning(
-                    "ConnectionResetError during Instrument.write().  Closing & Reopening"
+                    "ConnectionResetError during Instrument.%s.  Closing & Reopening",
+                    fcn.__name__,
                 )
                 self.resource.reset()
             except visawrapper.prologix.PrologixTimeout as e:
                 self.logger.warning(
-                    "Prologix Timeout occured during Instrument.write() operation"
+                    "Prologix Timeout occured during Instrument.%s operation",
+                    fcn.__name__,
                 )
-        raise InstrumentIOError("Instrument.write() Max retries exceeded")
+        raise InstrumentIOError("Instrument.%s Max retries exceeded", fcn.__name__)
 
     return wrapper
 
@@ -138,7 +144,12 @@ class Instrument:
         self.resource.clear()
 
     @pyvisaExceptionHandler
+    def read_stb(self):
+        return self.resource.read_stb()
+
+    @pyvisaExceptionHandler
     def write(self, command, delay=0.0, retries=3):
+        self.logger.log(8, command)
         result = self.resource.write(command)
         time.sleep(delay)
         return result
@@ -357,7 +368,7 @@ class Instrument:
         ----------
         input : string
             Value to lookup
-        
+
         direction : string
             Which direction to map:
             "from": input is from instrument, output is to Python
